@@ -18,9 +18,14 @@ import { ArrowBack, CheckCircle, Lock } from "@mui/icons-material";
 import { RESOURCE } from "Utils/Queries/Blog";
 import { useProjectContext, formatPrice } from "Utils/Context";
 import { downloadResource } from "./downloadResource";
-import { findStaticResource, FFC_BUNDLE_ID } from "Utils/staticResources";
+import {
+  findStaticResource,
+  FFC_BUNDLE_ID,
+  TRAINING_BUNDLE_ID,
+} from "Utils/staticResources";
 import { getResourcePreview } from "Utils/resourcePreviews";
 import BundleLanding from "./BundleLanding";
+import TrainingBundleLanding from "./TrainingBundleLanding";
 
 function AuthorIntro({ authors }) {
   const author = authors?.[0];
@@ -159,8 +164,19 @@ export default function ResourceDetail() {
   };
 
   const handleOpen = () => {
-    if (resource.category !== "Downloadable") navigate(`/resources/${id}/watch`);
-    else downloadResource(resource);
+    if (resource.category === "Downloadable") {
+      downloadResource(resource);
+      return;
+    }
+    // A video bundle isn't a single Sanity document, so there's no one
+    // video for /watch to play — that page is only correct for an
+    // individual training. (FFC Bundle also has bundleContents but is
+    // category "Downloadable", so it never reaches this branch.)
+    if (resource.bundleContents?.length) {
+      toast.info("Open each training below to watch it.");
+      return;
+    }
+    navigate(`/resources/${id}/watch`);
   };
 
   if (loading) {
@@ -202,6 +218,19 @@ export default function ResourceDetail() {
         inCart={inCart}
         onBuy={handleAddToCart}
         onOpen={handleOpen}
+        currency={currency}
+        rate={rate}
+      />
+    );
+  }
+
+  if (resource.id === TRAINING_BUNDLE_ID) {
+    return (
+      <TrainingBundleLanding
+        resource={resource}
+        isPaid={isPaid}
+        inCart={inCart}
+        onBuy={handleAddToCart}
         currency={currency}
         rate={rate}
       />

@@ -3,7 +3,7 @@ const router = express.Router();
 
 const User = require("../Schema/User");
 const Order = require("../Schema/Order");
-const { resolveCart } = require("../Services/pricing");
+const { resolveCart, BUNDLE_CONTENTS } = require("../Services/pricing");
 const {
   payfastConfig,
   getAccessToken,
@@ -200,9 +200,17 @@ async function handleCallback(req, res) {
     if (!user) return fail("Order has no user", 404);
 
     const owned = new Set((user.paidItems || []).map((i) => i.id));
-    const granted = order.items
-      .filter((i) => !owned.has(i.id))
-      .map((i) => ({ id: i.id, purchasedAt: new Date() }));
+    // A bundle's own id goes into paidItems like any other item, but it
+    // should also unlock everything it bundles — otherwise the buyer paid
+    // for the bundle and can't actually open anything inside it.
+    const idsToGrant = new Set();
+    for (const item of order.items) {
+      idsToGrant.add(item.id);
+      for (const bundledId of BUNDLE_CONTENTS[item.id] || []) idsToGrant.add(bundledId);
+    }
+    const granted = [...idsToGrant]
+      .filter((id) => !owned.has(id))
+      .map((id) => ({ id, purchasedAt: new Date() }));
 
     if (granted.length) {
       user.paidItems.push(...granted);

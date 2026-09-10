@@ -50,10 +50,47 @@ const FFC_BUNDLE_ID = "ffc-bundle";
 // @ 3.5 = 70.5) so the bundle is an actual discount, not a markup. Keep in
 // step with FrontEnd/src/Utils/staticResources.js if either changes.
 const FFC_BUNDLE_PRICE_EUR = 56.0;
+// The real Sanity resource + game IDs a paid FFC Bundle unlocks, on top of
+// the bundle's own ID. Verified against the live dataset — keep in step if
+// any of these resources/games are ever renamed or removed.
+const FFC_BUNDLE_CONTENTS = [
+  "0063aeaf-3355-42f2-9533-31482f8aa7f9", // FFC- Class Guide book
+  "66a24624-06f8-4b54-9357-1f6a8f267545", // FFC- Feature Guide Book
+  "c10906d4-bc72-482e-b5c1-d11e097f7bd6", // FFC- Function Guide Book
+  "8f66126b-11a1-44b7-8f5c-5692c70d5caf", // FFC- Features Workbook
+  "ffb1b868-2dc1-433e-af32-a4347ce8901c", // FFC- Function workbook
+  "domain1-game-3",
+  "domain1-game-4",
+  "domain1-game-5",
+  "domain1-game-6",
+  "domain1-game-7",
+  "domain1-game-8",
+  "domain1-game-9",
+  "domain1-game-10",
+];
+
+// --- Training Bundle --------------------------------------------------
+// Also not a Sanity document — mirrors FrontEnd/src/Utils/staticResources.js.
+const TRAINING_BUNDLE_ID = "training-bundle";
+// 4 trainings @ 9.5 EUR = 38 EUR bought separately; this is exactly 40% off
+// that. Keep in step with staticResources.js and the real per-training
+// prices in Sanity if either changes.
+const TRAINING_BUNDLE_PRICE_EUR = 22.8;
+// The real Sanity training IDs a paid Training Bundle unlocks. Verified
+// against the live dataset.
+const TRAINING_BUNDLE_CONTENTS = [
+  "3bab9f72-b36a-4b22-a25f-92143533cc3b", // Training #1: Frequency
+  "556722fa-61b3-40e0-a7ec-3e246e50c238", // Training #3: Rate Measurement
+  "5a057717-3f83-4f04-96e4-a149fd3db9d8", // Training #2: Duration and Latency
+  "bf63f6fb-c3ff-4787-aba7-fb3ed74d9a1a", // Training #4: Whole Interval
+];
 
 function priceStaticItem(id) {
   if (id === FFC_BUNDLE_ID) {
     return { title: "FFC Bundle", priceEur: FFC_BUNDLE_PRICE_EUR };
+  }
+  if (id === TRAINING_BUNDLE_ID) {
+    return { title: "Training Bundle", priceEur: TRAINING_BUNDLE_PRICE_EUR };
   }
   return null;
 }
@@ -179,9 +216,17 @@ async function resolveCart(itemIds) {
   return { items, eurTotal, fxRate, pkrAmount, testOverrideApplied };
 }
 
+// Map from a bundle's own id to the real ids it unlocks, for granting
+// entitlement on a successful purchase.
+const BUNDLE_CONTENTS = {
+  [FFC_BUNDLE_ID]: FFC_BUNDLE_CONTENTS,
+  [TRAINING_BUNDLE_ID]: TRAINING_BUNDLE_CONTENTS,
+};
+
 module.exports = {
   resolveCart,
   getEurToPkrRate,
   priceGameItem,
   GAMES_BUNDLE_ID,
+  BUNDLE_CONTENTS,
 };

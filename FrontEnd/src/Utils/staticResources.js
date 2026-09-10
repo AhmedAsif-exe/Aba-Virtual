@@ -3,8 +3,10 @@
 // the CMS. Keep the `id` and `price` here in sync with FFC_BUNDLE_ID /
 // FFC_BUNDLE_PRICE_EUR over there.
 import ffcBundleImg from "Assets/Images/ffc-bundle.png";
+import trainingBundleImg from "Assets/Images/training-bundle.png";
 
 export const FFC_BUNDLE_ID = "ffc-bundle";
+export const TRAINING_BUNDLE_ID = "training-bundle";
 
 export const STATIC_RESOURCES = [
   {
@@ -48,6 +50,32 @@ export const STATIC_RESOURCES = [
       },
     ],
     image: { asset: { url: ffcBundleImg } },
+  },
+  {
+    id: TRAINING_BUNDLE_ID,
+    title: "Training Bundle",
+    category: "Training",
+    type: "Video",
+    // 4 trainings @ 9.5 EUR = 38 EUR bought separately; bundle is exactly
+    // 40% off that. Keep in step with BackEnd/Services/pricing.js and with
+    // the real per-training prices in Sanity if either changes.
+    price: 22.8,
+    compareAtPrice: 38.0,
+    description:
+      "All four measurement trainings in one bundle — Frequency, Duration & Latency, Rate, and Whole Interval — at 40% off buying them one by one.",
+    perks: ["One-time purchase, a year of access to every training included"],
+    bundleContents: [
+      {
+        label: "Trainings",
+        items: [
+          "Training #1: Measurement - Frequency",
+          "Training #2: Duration and Latency",
+          "Training #3: Rate Measurement",
+          "Training #4: Whole Interval",
+        ],
+      },
+    ],
+    image: { asset: { url: trainingBundleImg } },
   },
 ];
 
