@@ -15,7 +15,6 @@ import {
   Lock,
 } from "@mui/icons-material";
 import { formatPrice } from "Utils/Context";
-import ksaFlag from "Assets/Images/Flag/ksa.png";
 
 const CATEGORY_ICON = {
   "Guide Books": MenuBook,
@@ -268,24 +267,6 @@ export default function BundleLanding({
                 style={{ width: `${barPct}%`, background: "#45B4B3" }}
               />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIAL */}
-      <section className="mt-14 max-w-3xl">
-        <div className="border-l-4 border-[#45B4B3] pl-6 py-2">
-          <p className="text-lg t:text-xl text-[#14293A] italic leading-relaxed">
-            "I took ABA therapy (online) from Faiza for my son. It has been a
-            great experience as my son makes remarkable progress in terms of
-            behavior as well as academics. She provided all the learning
-            material required for the session based on my child's need."
-          </p>
-          <div className="flex items-center gap-2 mt-4">
-            <img src={ksaFlag} alt="" className="w-6 h-6 rounded-full object-cover" />
-            <span className="text-sm font-semibold text-gray-500">
-              Parent, Saudi Arabia
-            </span>
           </div>
         </div>
       </section>
