@@ -21,6 +21,7 @@ cron.schedule("0 0 * * *", async () => {
 });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const { getEurRates, FIXED_PKR_PRICES } = require("../Services/pricing");
 
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
@@ -77,6 +78,13 @@ const EUROPE = new Set([
   "UA",
   "GB",
   "VA",
+  "AX",
+  "FO",
+  "GG",
+  "GI",
+  "IM",
+  "JE",
+  "SJ",
 ]);
 
 function classifyCurrency(countryCode) {
@@ -85,22 +93,6 @@ function classifyCurrency(countryCode) {
   if (cc === "PK") return "PKR";
   if (EUROPE.has(cc)) return "EUR";
   return "USD";
-}
-
-// ponytail: 1h memory cache; Redis if rate-limits bite
-let fxCache = { at: 0, rates: null };
-const FX_TTL_MS = 60 * 60 * 1000;
-
-async function getEurRates() {
-  if (fxCache.rates && Date.now() - fxCache.at < FX_TTL_MS)
-    return fxCache.rates;
-  const res = await fetch("https://open.er-api.com/v6/latest/EUR");
-  if (!res.ok) throw new Error("FX fetch failed");
-  const data = await res.json();
-  if (data.result !== "success" || !data.rates)
-    throw new Error("FX bad payload");
-  fxCache = { at: Date.now(), rates: data.rates };
-  return data.rates;
 }
 
 function isLoopback(ip) {
@@ -248,17 +240,27 @@ router.post("/create-stripe-session", ensureAuth, async (req, res) => {
 // Must be before GET /:file
 router.get("/currency", async (req, res) => {
   try {
-    let country = null;
-    const ip = clientIp(req);
+    // Cloudflare already geolocates every request; XX/T1 mean unknown/Tor.
+    const cfCountry = String(req.headers["cf-ipcountry"] || "").toUpperCase();
+    let country = /^[A-Z]{2}$/.test(cfCountry) && cfCountry !== "XX" && cfCountry !== "T1"
+      ? cfCountry
+      : null;
 
-    // Prefer real visitor IP — never geo "empty" (that = server/VPS country, e.g. NL)
+    // Otherwise geolocate the real visitor IP — never an empty lookup (that
+    // resolves the server/VPS itself, e.g. NL).
+    const ip = !country && clientIp(req);
     if (ip) {
-      const geoRes = await fetch(
-        `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode`,
-      );
-      if (geoRes.ok) {
-        const geo = await geoRes.json();
-        if (geo.status === "success") country = geo.countryCode || null;
+      try {
+        const geoRes = await fetch(
+          `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode`,
+          { signal: AbortSignal.timeout(3000) },
+        );
+        if (geoRes.ok) {
+          const geo = await geoRes.json();
+          if (geo.status === "success") country = geo.countryCode || null;
+        }
+      } catch (err) {
+        console.warn("Geo lookup failed, using browser hint:", err.message);
       }
     }
 
@@ -273,14 +275,13 @@ router.get("/currency", async (req, res) => {
     }
 
     const currency = classifyCurrency(country);
-    let rate = 1;
-    if (currency !== "EUR") {
-      const rates = await getEurRates();
-      rate = rates[currency];
-      if (!rate) throw new Error(`No rate for ${currency}`);
-    }
+    const rates = await getEurRates();
+    const rate = currency === "EUR" ? 1 : Number(rates[currency]);
+    const pkrRate = Number(rates.PKR);
+    if (!(rate > 0) || !(pkrRate > 0)) throw new Error(`No rate for ${currency}`);
 
-    res.json({ currency, rate, country });
+    // pkrRate + fixedPkr let the browser show fixed-PKR items in any currency.
+    res.json({ currency, rate, pkrRate, fixedPkr: FIXED_PKR_PRICES, country });
   } catch (err) {
     console.error("Currency resolve error:", err);
     res.json({ currency: "EUR", rate: 1, country: null });

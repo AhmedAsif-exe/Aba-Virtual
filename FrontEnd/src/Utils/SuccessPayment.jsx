@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock } from "lucide-react";
-import { useProjectContext } from "./Context";
+import { useProjectContext, formatAmount } from "./Context";
 import { useEffect, useState } from "react";
 import { fetchOrder } from "./Queries/Checkout";
 import { checkAuthStatus } from "axiosInstance";
@@ -50,7 +50,9 @@ const SuccessPayment = () => {
               <li key={item.id} className="py-2 flex justify-between gap-3">
                 <span className="truncate">{item.title}</span>
                 <span className="text-gray-500 shrink-0">
-                  €{Number(item.priceEur).toFixed(2)}
+                  {item.pricePkr != null
+                    ? formatAmount(item.pricePkr, "PKR")
+                    : `€${Number(item.priceEur).toFixed(2)}`}
                 </span>
               </li>
             ))}

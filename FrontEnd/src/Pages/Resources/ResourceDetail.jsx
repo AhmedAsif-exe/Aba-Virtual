@@ -16,10 +16,11 @@ import {
 } from "@mui/material";
 import { ArrowBack, CheckCircle, Lock } from "@mui/icons-material";
 import { RESOURCE } from "Utils/Queries/Blog";
-import { useProjectContext, formatPrice } from "Utils/Context";
+import { useProjectContext, formatAmount } from "Utils/Context";
 import { downloadResource } from "./downloadResource";
 import {
   findStaticResource,
+  compareAtPrice,
   FFC_BUNDLE_ID,
   TRAINING_BUNDLE_ID,
 } from "Utils/staticResources";
@@ -134,7 +135,7 @@ const actionButtonStyle = {
 export default function ResourceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { dispatch, user, cart, currency, rate, setCartOpen } =
+  const { dispatch, user, cart, currency, priceOf, setCartOpen } =
     useProjectContext();
   const [isPaid, setIsPaid] = useState(false);
 
@@ -210,6 +211,9 @@ export default function ResourceDetail() {
     );
   }
 
+  const price = priceOf({ id, price: resource.price });
+  const compareAt = compareAtPrice(resource, priceOf);
+
   if (resource.id === FFC_BUNDLE_ID) {
     return (
       <BundleLanding
@@ -218,8 +222,6 @@ export default function ResourceDetail() {
         inCart={inCart}
         onBuy={handleAddToCart}
         onOpen={handleOpen}
-        currency={currency}
-        rate={rate}
       />
     );
   }
@@ -231,8 +233,6 @@ export default function ResourceDetail() {
         isPaid={isPaid}
         inCart={inCart}
         onBuy={handleAddToCart}
-        currency={currency}
-        rate={rate}
       />
     );
   }
@@ -276,20 +276,18 @@ export default function ResourceDetail() {
           </Box>
 
           <div className="flex items-center gap-3 flex-wrap mt-4">
-            {!!resource.compareAtPrice && (
+            {!!compareAt && (
               <span className="text-lg text-gray-400 line-through">
-                {formatPrice(resource.compareAtPrice, currency, rate)}
+                {formatAmount(compareAt, currency)}
               </span>
             )}
             <span className="text-2xl font-bold text-[#f97544]">
-              {formatPrice(resource.price, currency, rate)}
+              {formatAmount(price, currency)}
             </span>
-            {!!resource.compareAtPrice && resource.compareAtPrice > resource.price && (
+            {compareAt > price && (
               <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
-                Save {formatPrice(resource.compareAtPrice - resource.price, currency, rate)} (
-                {Math.round(
-                  ((resource.compareAtPrice - resource.price) / resource.compareAtPrice) * 100,
-                )}
+                Save {formatAmount(compareAt - price, currency)} (
+                {Math.round(((compareAt - price) / compareAt) * 100)}
                 %)
               </span>
             )}
@@ -366,9 +364,9 @@ export default function ResourceDetail() {
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                {resource.compareAtPrice && resource.compareAtPrice > resource.price
-                  ? `Buy the Bundle for ${formatPrice(resource.price, currency, rate)}`
-                  : `Buy for ${formatPrice(resource.price, currency, rate)}`}
+                {compareAt > price
+                  ? `Buy the Bundle for ${formatAmount(price, currency)}`
+                  : `Buy for ${formatAmount(price, currency)}`}
               </button>
             )}
           </div>

@@ -1,9 +1,4 @@
-import {
-  useProjectContext,
-  formatPrice,
-  formatAmount,
-  convertPrice,
-} from "Utils/Context";
+import { useProjectContext, formatAmount } from "Utils/Context";
 import { initiateCheckoutSession } from "Utils/Queries/Checkout";
 import {
   IconButton,
@@ -15,10 +10,9 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ShoppingCart, Delete, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
-import api from "axiosInstance";
 
 /** Mirrors the server's check so users get told before a round trip. */
 function isValidPkMobile(input) {
@@ -36,7 +30,8 @@ export default function CartDrawer() {
     dispatch,
     loggedIn,
     currency,
-    rate,
+    priceOf,
+    pkrPriceOf,
     cartOpen,
     setCartOpen,
   } = useProjectContext();
@@ -47,37 +42,17 @@ export default function CartDrawer() {
   const handleOpen = () => setCartOpen(true);
   const handleClose = () => setCartOpen(false);
 
-  // Sum per-line rounded display amounts.
-  const totalDisplay = cart.reduce(
-    (sum, item) => sum + convertPrice(item.price, rate),
-    0,
-  );
+  // Sum per-line amounts, the same way the server prices the order.
+  const displayLines = cart.map(priceOf);
+  const totalDisplay = displayLines.includes(null)
+    ? null
+    : displayLines.reduce((sum, n) => sum + n, 0);
 
-  // PayFast settles in PKR, so that is what the card is actually billed —
-  // show it explicitly rather than letting the euro price imply otherwise.
-  const [pkrRate, setPkrRate] = useState(null);
-  const eurTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  const pkrTotal = pkrRate ? Math.round(eurTotal * pkrRate) : null;
-
-  const loadPkrRate = async () => {
-    if (pkrRate !== null) return;
-    try {
-      const { data } = await api.get("/paypal/currency", {
-        params: { country: "PK" },
-      });
-      if (data?.currency === "PKR" && Number(data.rate) > 0) {
-        setPkrRate(Number(data.rate));
-      }
-    } catch {
-      /* disclosure is best-effort; the server still charges the correct amount */
-    }
-  };
-
-  // Load regardless of what opened the drawer (floating icon or an "add to cart" action).
-  useEffect(() => {
-    if (cartOpen) loadPkrRate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartOpen]);
+  // PayFast settles in PKR, so that is what the card is actually billed.
+  const pkrLines = cart.map(pkrPriceOf);
+  const pkrTotal = pkrLines.includes(null)
+    ? null
+    : pkrLines.reduce((sum, n) => sum + n, 0);
 
   // "Pay with PayFast" only opens the mobile-number prompt; the actual
   // checkout call happens once that's confirmed, in handleConfirmPay.
@@ -160,7 +135,7 @@ export default function CartDrawer() {
               <div className="flex-1 mr-2">
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-gray-500">
-                  {formatPrice(item.price, currency, rate)}
+                  {formatAmount(priceOf(item), currency)}
                 </p>
               </div>
               <IconButton

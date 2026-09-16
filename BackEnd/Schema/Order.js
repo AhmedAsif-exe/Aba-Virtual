@@ -29,6 +29,7 @@ const orderSchema = new mongoose.Schema(
         id: { type: String, required: true },
         title: String,
         priceEur: Number,
+        pricePkr: Number,
       },
     ],
 

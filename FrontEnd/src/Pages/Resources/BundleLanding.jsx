@@ -14,7 +14,8 @@ import {
   SportsEsports,
   Lock,
 } from "@mui/icons-material";
-import { formatPrice } from "Utils/Context";
+import { useProjectContext, formatAmount } from "Utils/Context";
+import { compareAtPrice } from "Utils/staticResources";
 
 const CATEGORY_ICON = {
   "Guide Books": MenuBook,
@@ -49,22 +50,16 @@ export default function BundleLanding({
   inCart,
   onBuy,
   onOpen,
-  currency,
-  rate,
 }) {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(null);
+  const { currency, priceOf } = useProjectContext();
 
-  const savings =
-    resource.compareAtPrice && resource.compareAtPrice > resource.price
-      ? resource.compareAtPrice - resource.price
-      : 0;
-  const savingsPct = savings
-    ? Math.round((savings / resource.compareAtPrice) * 100)
-    : 0;
-  const barPct = resource.compareAtPrice
-    ? Math.round((resource.price / resource.compareAtPrice) * 100)
-    : 100;
+  const price = priceOf(resource);
+  const compareAt = compareAtPrice(resource, priceOf);
+  const savings = compareAt > price ? compareAt - price : 0;
+  const savingsPct = savings ? Math.round((savings / compareAt) * 100) : 0;
+  const barPct = compareAt ? Math.round((price / compareAt) * 100) : 100;
 
   const totalItems =
     resource.bundleContents?.reduce((sum, g) => sum + g.items.length, 0) ?? 0;
@@ -73,7 +68,7 @@ export default function BundleLanding({
     ? "Download the Bundle"
     : inCart
       ? "Added to cart ✔"
-      : `Buy the Bundle for ${formatPrice(resource.price, currency, rate)}`;
+      : `Buy the Bundle for ${formatAmount(price, currency)}`;
 
   const handleCta = () => {
     if (isPaid) onOpen();
@@ -112,17 +107,17 @@ export default function BundleLanding({
             </p>
 
             <div className="flex items-center gap-3 flex-wrap mt-6">
-              {!!resource.compareAtPrice && (
+              {!!compareAt && (
                 <span className="text-lg text-white/40 line-through">
-                  {formatPrice(resource.compareAtPrice, currency, rate)}
+                  {formatAmount(compareAt, currency)}
                 </span>
               )}
               <span className="text-3xl font-extrabold text-[#f97544]">
-                {formatPrice(resource.price, currency, rate)}
+                {formatAmount(price, currency)}
               </span>
               {!!savings && (
                 <span className="text-xs font-bold bg-emerald-400/90 text-emerald-950 px-2.5 py-1 rounded-full">
-                  Save {formatPrice(savings, currency, rate)} ({savingsPct}%)
+                  Save {formatAmount(savings, currency)} ({savingsPct}%)
                 </span>
               )}
             </div>
@@ -252,14 +247,14 @@ export default function BundleLanding({
           <div>
             <div className="flex justify-between text-sm font-semibold text-gray-500 mb-1">
               <span>Buying everything separately</span>
-              <span>{formatPrice(resource.compareAtPrice, currency, rate)}</span>
+              <span>{formatAmount(compareAt, currency)}</span>
             </div>
             <div className="h-3 rounded-full bg-gray-200 w-full" />
           </div>
           <div>
             <div className="flex justify-between text-sm font-bold text-[#14293A] mb-1">
               <span>The FFC Bundle</span>
-              <span>{formatPrice(resource.price, currency, rate)}</span>
+              <span>{formatAmount(price, currency)}</span>
             </div>
             <div className="h-3 rounded-full bg-gray-200 w-full overflow-hidden">
               <div
@@ -308,10 +303,10 @@ export default function BundleLanding({
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap mt-6">
           <span className="text-lg text-white/40 line-through">
-            {formatPrice(resource.compareAtPrice, currency, rate)}
+            {formatAmount(compareAt, currency)}
           </span>
           <span className="text-2xl font-extrabold text-[#f97544]">
-            {formatPrice(resource.price, currency, rate)}
+            {formatAmount(price, currency)}
           </span>
         </div>
         <button

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { useProjectContext, formatPrice } from "Utils/Context";
+import { useProjectContext, formatAmount } from "Utils/Context";
 
 export default function ResourceCard({ resource, category, preview = false }) {
-  const { user, currency, rate } = useProjectContext();
+  const { user, currency, priceOf } = useProjectContext();
   const navigate = useNavigate();
   const [isPaid, setIsPaid] = useState(false);
 
@@ -43,7 +43,7 @@ export default function ResourceCard({ resource, category, preview = false }) {
         </p>
         {/* Price */}
         <p className="text-lg font-bold text-[#f97544] mt-auto">
-          {formatPrice(resource.price, currency, rate)} ONLY
+          {formatAmount(priceOf(resource), currency)} ONLY
         </p>
         {/* Buttons */}
         <Button

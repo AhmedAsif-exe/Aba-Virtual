@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import PageTemplate from "Utils/PageTemplate";
 import style from "Utils/Card/Card.module.css";
-import { useProjectContext, formatPrice } from "Utils/Context";
+import { useProjectContext, formatAmount } from "Utils/Context";
 import DomainProgress from "./Domain/1/DomainProgress";
 import BackToGames from "./BackToGames";
 
@@ -110,11 +110,11 @@ const GAMES_BUNDLE_ID = "domain1-bundle-levels-3-10";
 const GAMES_BUNDLE_TITLE = "Domain 1 Bundle (Levels 3-10)";
 const GAMES_BUNDLE_PRICE = 25.0;
 const INDIVIDUAL_GAME_PRICE = 3.5;
-const GAMES_BUNDLE_BENEFITS = [
-  "Unlocks all 8 games (Levels 3-10)",
-  "One-time purchase, a year of access",
-  "Best value - save €3 compared to buying individually",
-];
+const gameItem = (n) => ({
+  id: `domain1-game-${n}`,
+  price: INDIVIDUAL_GAME_PRICE,
+});
+const GAMES_BUNDLE_ITEM = { id: GAMES_BUNDLE_ID, price: GAMES_BUNDLE_PRICE };
 
 // Mini chart component to avoid heavy dependencies
 function MiniProgressChart({ history = [], max = 20, color = "#57c785" }) {
@@ -204,8 +204,18 @@ export default function GamesHome() {
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
-  const { cart, dispatch, loggedIn, user, currency, rate } =
+  const { cart, dispatch, loggedIn, user, currency, priceOf } =
     useProjectContext();
+  const bundleSavings =
+    lockedLevels.reduce((sum, n) => sum + priceOf(gameItem(n)), 0) -
+    priceOf(GAMES_BUNDLE_ITEM);
+  const bundleBenefits = [
+    "Unlocks all 8 games (Levels 3-10)",
+    "One-time purchase, a year of access",
+    bundleSavings > 0
+      ? `Best value - save ${formatAmount(bundleSavings, currency)} compared to buying individually`
+      : "Best value compared to buying individually",
+  ];
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLockedGame, setModalLockedGame] = useState(null);
 
@@ -1174,7 +1184,10 @@ export default function GamesHome() {
                           color: "#57c785",
                         }}
                       >
-                        {formatPrice(INDIVIDUAL_GAME_PRICE, currency, rate)}
+                        {formatAmount(
+                          priceOf(gameItem(modalLockedGame.id)),
+                          currency,
+                        )}
                       </div>
                     </div>
                     <p
@@ -1288,7 +1301,7 @@ export default function GamesHome() {
                         color: "#f97544",
                       }}
                     >
-                      {formatPrice(GAMES_BUNDLE_PRICE, currency, rate)}
+                      {formatAmount(priceOf(GAMES_BUNDLE_ITEM), currency)}
                     </div>
                   </div>
                   <ul
@@ -1300,7 +1313,7 @@ export default function GamesHome() {
                       gap: 6,
                     }}
                   >
-                    {GAMES_BUNDLE_BENEFITS.map((b, i) => (
+                    {bundleBenefits.map((b, i) => (
                       <li
                         key={i}
                         style={{

@@ -46,7 +46,9 @@ export default defineType({
     }),
     defineField({
       name: 'price',
-      title: 'Price (USD)',
+      title: 'Price (EUR)',
+      description:
+        'Items with a fixed PKR price in BackEnd/Services/pricing.js ignore this value',
       type: 'number',
       validation: (rule: NumberRule) => rule.min(0),
     }),
