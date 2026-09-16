@@ -1,9 +1,10 @@
 {
   "files": {
-    "main.css": "/static/css/main.0e1da66f.css",
-    "main.js": "/static/js/main.ff161c60.js",
+    "main.css": "/static/css/main.9516f0b3.css",
+    "main.js": "/static/js/main.285cf9ab.js",
     "static/js/289.e46c4336.chunk.js": "/static/js/289.e46c4336.chunk.js",
     "static/media/resources.jpg": "/static/media/resources.ee730dbf556107111a73.jpg",
+    "static/media/page-3.png": "/static/media/page-3.0ff6046d4d0505276377.png",
     "static/media/About-Us-bg.png": "/static/media/About-Us-bg.10f0a0f042f0f9a58b53.png",
     "static/media/between_worlds.jpg": "/static/media/between_worlds.0f227ab52b3076117c10.jpg",
     "static/media/location.jpg": "/static/media/location.12f0fd7204f5a698d394.jpg",
@@ -13,17 +14,19 @@
     "static/media/blog_banner.jpg": "/static/media/blog_banner.afa27861927bcbee7154.jpg",
     "static/media/logo-removebg-preview.png": "/static/media/logo-removebg-preview.350473bba3b617dcbb1f.png",
     "static/media/faiza-pic.jpeg": "/static/media/faiza-pic.9221f333c55ef256bd4c.jpeg",
+    "static/media/training-bundle.png": "/static/media/training-bundle.d25f1a80434ad5fbaed2.png",
+    "static/media/ffc-bundle.png": "/static/media/ffc-bundle.fc29657b8706cf3bf12e.png",
     "static/media/pak.png": "/static/media/pak.5b3ccb1aac102808d0bb.png",
     "static/media/ksa.png": "/static/media/ksa.da31fc782997da983b1b.png",
     "index.html": "/index.html",
     "static/media/svg": "/static/media/2a0bc34f2fdf6d6b.6e0f8a48a90f41998086.svg",
     "static/media/arrow.svg": "/static/media/arrow.4a79e92a7b2fce4ad6417028fdf68492.svg",
-    "main.0e1da66f.css.map": "/static/css/main.0e1da66f.css.map",
-    "main.ff161c60.js.map": "/static/js/main.ff161c60.js.map",
+    "main.9516f0b3.css.map": "/static/css/main.9516f0b3.css.map",
+    "main.285cf9ab.js.map": "/static/js/main.285cf9ab.js.map",
     "289.e46c4336.chunk.js.map": "/static/js/289.e46c4336.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.0e1da66f.css",
-    "static/js/main.ff161c60.js"
+    "static/css/main.9516f0b3.css",
+    "static/js/main.285cf9ab.js"
   ]
 }
