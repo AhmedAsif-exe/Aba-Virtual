@@ -1,28 +1,9 @@
 import { useProjectContext, formatAmount } from "Utils/Context";
 import { initiateCheckoutSession } from "Utils/Queries/Checkout";
-import {
-  IconButton,
-  Badge,
-  Drawer,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
+import { IconButton, Badge, Drawer, CircularProgress } from "@mui/material";
 import { useState } from "react";
 import { ShoppingCart, Delete, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
-
-/** Mirrors the server's check so users get told before a round trip. */
-function isValidPkMobile(input) {
-  const digits = String(input || "").replace(/\D/g, "");
-  let local = digits;
-  if (local.startsWith("0092")) local = local.slice(4);
-  else if (local.startsWith("92")) local = local.slice(2);
-  if (local.startsWith("0")) local = local.slice(1);
-  return /^3\d{9}$/.test(local);
-}
 
 export default function CartDrawer() {
   const {
@@ -35,9 +16,7 @@ export default function CartDrawer() {
     cartOpen,
     setCartOpen,
   } = useProjectContext();
-  const [mobile, setMobile] = useState("");
   const [busy, setBusy] = useState(false);
-  const [payDialogOpen, setPayDialogOpen] = useState(false);
 
   const handleOpen = () => setCartOpen(true);
   const handleClose = () => setCartOpen(false);
@@ -54,25 +33,14 @@ export default function CartDrawer() {
     ? null
     : pkrLines.reduce((sum, n) => sum + n, 0);
 
-  // "Pay with PayFast" only opens the mobile-number prompt; the actual
-  // checkout call happens once that's confirmed, in handleConfirmPay.
-  const handlePayClick = () => {
+  const handlePayClick = async () => {
     if (!loggedIn) {
       window.location.href = "/login";
-      return;
-    }
-    setPayDialogOpen(true);
-  };
-
-  const handleConfirmPay = async () => {
-    if (!isValidPkMobile(mobile)) {
-      toast.error("Enter a valid mobile number, e.g. 03001234567");
       return;
     }
     setBusy(true);
     try {
       await initiateCheckoutSession(cart, {
-        mobile,
         currency,
         displayAmount: totalDisplay,
       });
@@ -196,61 +164,6 @@ export default function CartDrawer() {
           </div>
         </div>
       </Drawer>
-
-      {/* PayFast needs a mobile number; asked for only once the user commits to paying. */}
-      <Dialog
-        open={payDialogOpen}
-        onClose={() => !busy && setPayDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Confirm mobile number</DialogTitle>
-        <DialogContent>
-          <p className="text-sm text-gray-600 mb-3">
-            PayFast requires a mobile number to process this payment.
-          </p>
-          <label
-            htmlFor="payfast-mobile"
-            className="block text-xs font-medium text-gray-600"
-          >
-            Mobile number
-          </label>
-          <input
-            id="payfast-mobile"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            autoFocus
-            value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
-            placeholder="03001234567"
-            className="w-full mt-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#45B4B3]"
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <button
-            disabled={busy}
-            className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-60"
-            onClick={() => setPayDialogOpen(false)}
-          >
-            Cancel
-          </button>
-          <button
-            disabled={busy}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-sm bg-[#f9644d] text-white rounded-lg font-medium hover:bg-[#e25640] disabled:opacity-60"
-            onClick={handleConfirmPay}
-          >
-            {busy ? (
-              <>
-                <CircularProgress size={14} sx={{ color: "white" }} />
-                Redirecting…
-              </>
-            ) : (
-              "Confirm & Pay"
-            )}
-          </button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

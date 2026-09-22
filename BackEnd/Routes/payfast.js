@@ -33,36 +33,16 @@ function frontendBase() {
   );
 }
 
-// PayFast wants 92-3XXXXXXXXX. Accept what users actually type.
-function normaliseMobile(input) {
-  const digits = String(input || "").replace(/\D/g, "");
-  if (!digits) return null;
-  let local = digits;
-  if (local.startsWith("0092")) local = local.slice(4);
-  else if (local.startsWith("92")) local = local.slice(2);
-  if (local.startsWith("0")) local = local.slice(1);
-  // Pakistani mobiles are 3XXXXXXXXX (10 digits) once normalised.
-  if (!/^3\d{9}$/.test(local)) return null;
-  return `92-${local}`;
-}
-
 /**
  * POST /payfast/initiate
- * Body: { itemIds: string[], mobile: string, displayCurrency?, displayAmount? }
+ * Body: { itemIds: string[], displayCurrency?, displayAmount? }
  *
  * Prices are resolved server-side from the catalogue — the client sends only
  * IDs, never amounts.
  */
 router.post("/initiate", ensureAuth, async (req, res) => {
   try {
-    const { itemIds, mobile, displayCurrency, displayAmount } = req.body || {};
-
-    const customerMobile = normaliseMobile(mobile);
-    if (!customerMobile) {
-      return res.status(400).json({
-        error: "A valid Pakistani mobile number is required (e.g. 03001234567)",
-      });
-    }
+    const { itemIds, displayCurrency, displayAmount } = req.body || {};
 
     const ids = Array.isArray(itemIds) ? itemIds : [];
     if (!ids.length) return res.status(400).json({ error: "Cart is empty" });
@@ -92,7 +72,7 @@ router.post("/initiate", ensureAuth, async (req, res) => {
         displayCurrency: displayCurrency || "EUR",
         displayAmount: displayAmount ?? priced.eurTotal,
       },
-      customer: { email: req.user.email, mobile: customerMobile },
+      customer: { email: req.user.email },
       status: "pending",
     });
 
@@ -111,7 +91,6 @@ router.post("/initiate", ensureAuth, async (req, res) => {
       currency: "PKR",
       description: `Aba Virtual order ${basketId}`,
       customerEmail: req.user.email,
-      customerMobile,
       // Browser-facing return legs carry redirect=Y; the IPN leg does not.
       successUrl: `${callback}?redirect=Y`,
       failureUrl: `${callback}?redirect=Y`,

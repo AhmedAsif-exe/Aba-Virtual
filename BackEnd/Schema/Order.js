@@ -45,7 +45,7 @@ const orderSchema = new mongoose.Schema(
       displayAmount: Number,
     },
 
-    // PayFast requires a mobile number; the cart never collected one before.
+    // mobile is no longer collected; kept so older orders still load.
     customer: {
       email: String,
       mobile: String,

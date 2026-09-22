@@ -10,11 +10,10 @@ import api from "axiosInstance";
  */
 export const initiateCheckoutSession = async (
   cart,
-  { mobile, currency = "EUR", displayAmount } = {},
+  { currency = "EUR", displayAmount } = {},
 ) => {
   const { data } = await api.post("/payfast/initiate", {
     itemIds: cart.map((item) => item.id),
-    mobile,
     displayCurrency: currency,
     displayAmount,
   });
