@@ -11,6 +11,26 @@ const userSchema = new mongoose.Schema({
     enum: ["Parent", "Trainer", "Caretaker"],
     default: null,
   },
+
+  // Permission level for the supervision portal. Deliberately NOT `role`
+  // above: that one is a self-declared descriptor the user sets themselves
+  // from the account page, so folding portal access into it would let any
+  // customer grant themselves a supervisee's — or a supervisor's — view by
+  // picking a radio button. Nothing in the API accepts this field from a
+  // request body; it is set by scripts/promoteSupervisor.js and by the
+  // supervisor creating a supervisee account.
+  portalRole: {
+    type: String,
+    enum: ["supervisee", "supervisor"],
+    default: null,
+    index: true,
+  },
+
+  // Set when the supervisor creates an account with a generated temporary
+  // password; cleared by POST /auth/change-password. The portal refuses to
+  // show anything else until it is cleared.
+  mustChangePassword: { type: Boolean, default: false },
+
   paidItems: [
     {
       id: String,

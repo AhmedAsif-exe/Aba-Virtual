@@ -24,6 +24,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
+import SchoolIcon from "@mui/icons-material/School";
 import { useNavigate } from "react-router-dom";
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   display: "flex",
@@ -46,6 +47,16 @@ export default function AppAppBar() {
   const [open, setOpen] = React.useState(false);
   const [profileMenuAnchor, setProfileMenuAnchor] = React.useState(null);
   const { user, loggedIn, loading, cart } = useProjectContext();
+
+  // Supervision portal entry point. Shown only to accounts that have a
+  // portalRole; everyone else never sees the link. Access itself is decided
+  // server-side, so this is navigation, not security.
+  const portalLink =
+    user?.portalRole === "supervisor"
+      ? { to: "/portal/supervisees", label: "Supervisees" }
+      : user?.portalRole === "supervisee"
+        ? { to: "/portal", label: "My supervision" }
+        : null;
   const toggleDrawer = (newOpen) => () => {
     setOpen(newOpen);
   };
@@ -195,6 +206,19 @@ export default function AppAppBar() {
                   anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                   transformOrigin={{ vertical: "top", horizontal: "right" }}
                 >
+                  {portalLink && (
+                    <MenuItem
+                      onClick={() => {
+                        setProfileMenuAnchor(null);
+                        navigate(portalLink.to);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <SchoolIcon fontSize="small" />
+                      </ListItemIcon>
+                      {portalLink.label}
+                    </MenuItem>
+                  )}
                   <MenuItem
                     onClick={() => {
                       setProfileMenuAnchor(null);
@@ -344,6 +368,17 @@ export default function AppAppBar() {
                 <Divider sx={{ my: 3 }} />
                 {loggedIn ? (
                   <>
+                    {portalLink && (
+                      <MenuItem
+                        onClick={() => handleNavigation(portalLink.to)}
+                        sx={{ color: "white" }}
+                      >
+                        <ListItemIcon>
+                          <SchoolIcon fontSize="small" sx={{ color: "white" }} />
+                        </ListItemIcon>
+                        {portalLink.label}
+                      </MenuItem>
+                    )}
                     <MenuItem
                       onClick={() => handleNavigation("/account")}
                       sx={{ color: "white" }}

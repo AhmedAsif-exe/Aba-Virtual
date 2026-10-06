@@ -24,6 +24,14 @@ import GamesHome from "Pages/Games/GamesHome";
 import PolicyPage from "Pages/Policies/PolicyPage";
 import ScrollToTop from "Utils/ScrollToTop";
 
+// Supervision portal (supervisees + supervisor admin views).
+import RequirePortalRole from "Pages/Portal/RequirePortalRole";
+import SetPassword from "Pages/Portal/SetPassword";
+import SuperviseeDashboard from "Pages/Portal/SuperviseeDashboard";
+import SupervisorDashboard from "Pages/Portal/SupervisorDashboard";
+import SuperviseeDetail from "Pages/Portal/SuperviseeDetail";
+import BoardsAdmin from "Pages/Portal/BoardsAdmin";
+
 // Domain-based game imports (Domain 1 moved)
 import { ReceptiveFunctionGame } from "Pages/Games/Domain/1/Game1";
 import { Game2 } from "Pages/Games/Domain/1/Game2";
@@ -95,6 +103,42 @@ function App() {
                 <div className="py-14">
                   <Contact />
                 </div>
+              }
+            />
+            {/* Supervision portal. These guards choose which screens to
+                offer; the API enforces the same rules independently, so a
+                hand-typed URL gets a 403, not someone else's data. */}
+            <Route path="/portal/set-password" element={<SetPassword />} />
+            <Route
+              path="/portal"
+              element={
+                <RequirePortalRole role="supervisee">
+                  <SuperviseeDashboard />
+                </RequirePortalRole>
+              }
+            />
+            <Route
+              path="/portal/supervisees"
+              element={
+                <RequirePortalRole role="supervisor">
+                  <SupervisorDashboard />
+                </RequirePortalRole>
+              }
+            />
+            <Route
+              path="/portal/supervisees/:id"
+              element={
+                <RequirePortalRole role="supervisor">
+                  <SuperviseeDetail />
+                </RequirePortalRole>
+              }
+            />
+            <Route
+              path="/portal/boards"
+              element={
+                <RequirePortalRole role="supervisor">
+                  <BoardsAdmin />
+                </RequirePortalRole>
               }
             />
             <Route path="/success" element={<SuccessPayment />} />

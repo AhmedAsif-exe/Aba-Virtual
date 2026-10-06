@@ -63,7 +63,22 @@ router.post("/login", (req, res, next) => {
     }
     req.logIn(user, (err) => {
       if (err) return next(err);
-      res.json({ message: "Login successful", user });
+      // Serialise explicitly rather than echoing the Mongoose document, which
+      // carried the bcrypt hash and googleId back to the browser. The client
+      // reads its user from /auth/me anyway; this just stops the login
+      // response being the one place a password hash leaves the server.
+      res.json({
+        message: "Login successful",
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          pfp: user.pfp,
+          role: user.role,
+          portalRole: user.portalRole || null,
+          mustChangePassword: !!user.mustChangePassword,
+        },
+      });
     });
   })(req, res, next);
 });
@@ -96,7 +111,8 @@ router.post("/logout", (req, res) => {
 });
 router.get("/me", async (req, res) => {
   if (req.isAuthenticated && req.isAuthenticated()) {
-    const { name, email, pfp, _id, paidItems, role, password } = req.user;
+    const { name, email, pfp, _id, paidItems, role, password, portalRole, mustChangePassword } =
+      req.user;
     res.json({
       user: {
         name,
@@ -106,6 +122,13 @@ router.get("/me", async (req, res) => {
         paidItems,
         role,
         hasPassword: !!password,
+        // Supervision portal. `portalRole` drives which portal screens the
+        // frontend offers; it is read-only here and set only by
+        // scripts/promoteSupervisor.js or by a supervisor creating an
+        // account. The frontend guard is cosmetic — every supervision route
+        // re-checks this server-side (Middleware/supervisionAuth.js).
+        portalRole: portalRole || null,
+        mustChangePassword: !!mustChangePassword,
       },
     });
   } else {
@@ -121,6 +144,13 @@ function ensureAuth(req, res, next) {
 const ROLES = ["Parent", "Trainer", "Caretaker"];
 
 // Update the caller's own profile. Only `role` is editable here today.
+//
+// Do NOT widen this to spread req.body, and do NOT add `portalRole` to ROLES.
+// This route lets a user set their own value, so anything reachable from here
+// is self-grantable: putting portal access in reach would let any customer
+// hand themselves a supervisee's — or a supervisor's — view of every trainee's
+// hour log. `role` is a self-declared descriptor; portalRole is a permission
+// and is only ever written server-side.
 router.patch("/profile", ensureAuth, async (req, res) => {
   const { role } = req.body || {};
   if (role !== undefined && role !== null && !ROLES.includes(role)) {
@@ -152,6 +182,10 @@ router.post("/change-password", ensureAuth, async (req, res) => {
   }
 
   req.user.password = await bcrypt.hash(newPassword, 10);
+  // A supervisee created by the supervisor starts on a generated password and
+  // is locked out of the portal until they replace it; this is where that
+  // lock lifts.
+  req.user.mustChangePassword = false;
   await req.user.save();
   res.json({ message: "Password updated" });
 });
