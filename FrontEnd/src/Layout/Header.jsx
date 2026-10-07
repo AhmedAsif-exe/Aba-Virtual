@@ -56,7 +56,8 @@ export default function AppAppBar() {
       ? { to: "/portal/supervisees", label: "Supervision" }
       : user?.portalRole === "supervisee"
         ? { to: "/portal", label: "My supervision" }
-        : null;
+        : // Everyone else is a potential supervisor: offer the plans.
+          { to: "/supervision-plans", label: "Supervision portal" };
   const toggleDrawer = (newOpen) => () => {
     setOpen(newOpen);
   };

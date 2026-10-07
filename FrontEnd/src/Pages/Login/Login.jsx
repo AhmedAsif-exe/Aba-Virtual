@@ -127,7 +127,11 @@ export default function Login(props) {
       const endpoint = isLogin ? "/auth/login" : "/auth/register";
       await api.post(endpoint, formData);
       window.scrollTo(0, 0);
-      window.location.href = "/";
+      // Back to where they came from (e.g. the plans page), same-site only —
+      // a "//host" or absolute URL here would be an open redirect.
+      const from = location.state?.from;
+      window.location.href =
+        typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : "/";
       toast.success(isLogin ? "Login successful!" : "Registration successful!");
     } catch (error) {
       const message = error.response?.data?.message || "An error occurred";

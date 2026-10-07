@@ -41,5 +41,11 @@ export default function RequirePortalRole({ role, children }) {
     return <Navigate to={home} replace />;
   }
 
+  // A supervisor whose plan has lapsed renews before anything else; the API
+  // answers 402 on every supervisor route until they do. Data is kept.
+  if (role === "supervisor" && user?.supervisionPlan && !user.supervisionPlan.active) {
+    return <Navigate to="/supervision-plans" replace />;
+  }
+
   return children;
 }

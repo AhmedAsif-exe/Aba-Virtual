@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const User = require("../Schema/User");
+const { planStatus } = require("../Services/supervisionPlans");
 
 const router = express.Router();
 
@@ -129,6 +130,8 @@ router.get("/me", async (req, res) => {
         // re-checks this server-side (Middleware/supervisionAuth.js).
         portalRole: portalRole || null,
         mustChangePassword: !!mustChangePassword,
+        // Paid supervisor access; drives the plans page and the renew banner.
+        supervisionPlan: planStatus(req.user),
       },
     });
   } else {

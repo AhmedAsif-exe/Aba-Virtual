@@ -17,6 +17,8 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { toast } from "react-toastify";
 
+import { useProjectContext } from "Utils/Context";
+
 import { PageHeading, PortalContainer, PortalLoading } from "./PortalShared";
 import {
   apiError,
@@ -34,6 +36,10 @@ export default function SupervisorDashboard() {
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [addOpen, setAddOpen] = React.useState(false);
+  const { user } = useProjectContext();
+  const plan = user?.supervisionPlan;
+  // Plans don't auto-renew, so the reminder is the only nudge they get.
+  const renewSoon = plan?.active && !plan.complimentary && plan.daysLeft <= 7;
 
   const load = React.useCallback(async () => {
     try {
@@ -68,6 +74,21 @@ export default function SupervisorDashboard() {
           </Stack>
         }
       />
+
+      {renewSoon && (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" onClick={() => navigate("/supervision-plans")}>
+              Renew
+            </Button>
+          }
+        >
+          Your plan ends on {formatDate(plan.expiresAt)} ({plan.daysLeft}{" "}
+          {plan.daysLeft === 1 ? "day" : "days"} left). Renew to keep access — any time left is
+          added on.
+        </Alert>
+      )}
 
       {rows.length === 0 && (
         <Alert severity="info">

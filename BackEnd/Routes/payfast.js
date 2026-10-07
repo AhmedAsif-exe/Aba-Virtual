@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require("../Schema/User");
 const Order = require("../Schema/Order");
 const { resolveCart, BUNDLE_CONTENTS } = require("../Services/pricing");
+const { isPlanId, extendPlan } = require("../Services/supervisionPlans");
 const {
   payfastConfig,
   getAccessToken,
@@ -49,9 +50,20 @@ router.post("/initiate", ensureAuth, async (req, res) => {
 
     const priced = await resolveCart(ids);
 
-    // Don't let someone re-buy what they already own.
+    // A supervisee account can't also be a supervisor, so it can't buy a
+    // supervisor plan — they'd pay and get nothing. Checked before any order
+    // or PayFast token exists.
+    if (priced.items.some((i) => isPlanId(i.id)) && req.user.portalRole === "supervisee") {
+      return res.status(400).json({
+        error:
+          "This is a supervisee account. Supervision plans are for supervisors — please use a different account.",
+      });
+    }
+
+    // Don't let someone re-buy what they already own. Plans are exempt:
+    // buying one again is a renewal, and it adds time rather than duplicating.
     const owned = new Set((req.user.paidItems || []).map((i) => i.id));
-    const duplicates = priced.items.filter((i) => owned.has(i.id));
+    const duplicates = priced.items.filter((i) => !isPlanId(i.id) && owned.has(i.id));
     if (duplicates.length) {
       return res.status(400).json({
         error: `Already purchased: ${duplicates.map((d) => d.title).join(", ")}`,
@@ -183,7 +195,15 @@ async function handleCallback(req, res) {
     // should also unlock everything it bundles — otherwise the buyer paid
     // for the bundle and can't actually open anything inside it.
     const idsToGrant = new Set();
+    let plansBought = 0;
     for (const item of order.items) {
+      // Plans are time on the account, not an owned item: paidItems would
+      // also fall to the one-year cleanup cron (Routes/gateway.js).
+      if (isPlanId(item.id)) {
+        extendPlan(user, item.id);
+        plansBought += 1;
+        continue;
+      }
       idsToGrant.add(item.id);
       for (const bundledId of BUNDLE_CONTENTS[item.id] || []) idsToGrant.add(bundledId);
     }
@@ -191,17 +211,17 @@ async function handleCallback(req, res) {
       .filter((id) => !owned.has(id))
       .map((id) => ({ id, purchasedAt: new Date() }));
 
-    if (granted.length) {
-      user.paidItems.push(...granted);
-      await user.save();
-    }
+    if (granted.length) user.paidItems.push(...granted);
+    if (granted.length || plansBought) await user.save();
 
     order.status = "paid";
     order.paidAt = new Date();
     await order.save();
 
     console.log(
-      `[PAYFAST] ${basketId} PAID user=${user.email} txn=${transactionId} granted=${granted.length}`,
+      `[PAYFAST] ${basketId} PAID user=${user.email} txn=${transactionId} granted=${granted.length}${
+        plansBought ? ` plan=${user.supervisionPlan.plan} until=${user.supervisionPlan.expiresAt.toISOString()}` : ""
+      }`,
     );
 
     return isRedirect

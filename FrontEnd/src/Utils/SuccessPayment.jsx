@@ -22,6 +22,7 @@ const SuccessPayment = () => {
   }, [basketId, dispatch]);
 
   const stillPending = order && order.status !== "paid";
+  const boughtPlan = order?.items?.some((item) => item.id?.startsWith("supervision-"));
 
   return (
     <div className="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -64,12 +65,23 @@ const SuccessPayment = () => {
         )}
 
         <div className="flex gap-3 justify-center">
-          <Link
-            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-300"
-            to="/resources"
-          >
-            My Resources
-          </Link>
+          {boughtPlan ? (
+            // A full page load, not a router Link: the portal guard reads the
+            // signed-in user, which must be re-fetched now the plan is live.
+            <a
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-300"
+              href="/portal/supervisees"
+            >
+              Open Supervision Portal
+            </a>
+          ) : (
+            <Link
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-300"
+              to="/resources"
+            >
+              My Resources
+            </Link>
+          )}
           <Link
             className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition duration-300"
             to="/"

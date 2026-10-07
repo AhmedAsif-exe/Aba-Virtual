@@ -31,6 +31,7 @@ import SuperviseeDashboard from "Pages/Portal/SuperviseeDashboard";
 import SupervisorDashboard from "Pages/Portal/SupervisorDashboard";
 import SuperviseeDetail from "Pages/Portal/SuperviseeDetail";
 import BoardsAdmin from "Pages/Portal/BoardsAdmin";
+import SupervisionPlans from "Pages/Portal/SupervisionPlans";
 
 // Domain-based game imports (Domain 1 moved)
 import { ReceptiveFunctionGame } from "Pages/Games/Domain/1/Game1";
@@ -109,6 +110,9 @@ function App() {
                 offer; the API enforces the same rules independently, so a
                 hand-typed URL gets a 403, not someone else's data. */}
             <Route path="/portal/set-password" element={<SetPassword />} />
+            {/* Public: the plans page sells to visitors as well as renewing
+                supervisors, and handles signed-out buyers itself. */}
+            <Route path="/supervision-plans" element={<SupervisionPlans />} />
             <Route
               path="/portal"
               element={

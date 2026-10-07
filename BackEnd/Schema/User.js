@@ -31,6 +31,13 @@ const userSchema = new mongoose.Schema({
   // show anything else until it is cleared.
   mustChangePassword: { type: Boolean, default: false },
 
+  // Paid supervisor access (Services/supervisionPlans.js). Only ever written
+  // by a verified PayFast payment; complimentary accounts ignore it.
+  supervisionPlan: {
+    plan: { type: String, default: null },
+    expiresAt: { type: Date, default: null },
+  },
+
   paidItems: [
     {
       id: String,

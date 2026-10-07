@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
+const { planStatus } = require("../Services/supervisionPlans");
 
 /**
  * Access control for the supervision portal.
@@ -37,9 +38,20 @@ function ensureSupervisee(req, res, next) {
   return ensurePasswordChanged(req, res, next);
 }
 
+/**
+ * A supervisor also needs a live plan (or a complimentary account). A lapsed
+ * plan locks every supervisor route at once — the roster, the logs, the
+ * boards — while the data stays untouched for when they renew. 402 rather
+ * than 403 so the frontend can tell "renew" apart from "not allowed".
+ */
 function ensureSupervisor(req, res, next) {
   if (req.user.portalRole !== "supervisor") {
     return res.status(403).json({ message: "Not a supervisor account" });
+  }
+  if (!planStatus(req.user).active) {
+    return res
+      .status(402)
+      .json({ message: "Your supervision plan has ended. Renew to continue.", planExpired: true });
   }
   return next();
 }

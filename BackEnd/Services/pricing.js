@@ -7,6 +7,7 @@
 // PayFast settles in PKR, so the EUR catalogue total is converted here too.
 
 const { createClient } = require("@sanity/client");
+const { SUPERVISION_PLANS } = require("./supervisionPlans");
 
 const sanity = createClient({
   projectId: process.env.SANITY_PROJECT_ID,
@@ -107,6 +108,9 @@ const FIXED_PKR_PRICES = {
 const pkrFromEur = (eur, eurToPkr) => Math.round((eur * eurToPkr) / 50) * 50;
 
 function priceStaticItem(id) {
+  const plan = SUPERVISION_PLANS[id];
+  if (plan) return { title: plan.title, priceEur: plan.priceEur };
+
   if (id === FFC_BUNDLE_ID) {
     return { title: "FFC Bundle", priceEur: FFC_BUNDLE_PRICE_EUR };
   }
