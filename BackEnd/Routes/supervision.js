@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
@@ -7,7 +8,13 @@ const SupervisionBoard = require("../Schema/SupervisionBoard");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
 const WorkHoursEntry = require("../Schema/WorkHoursEntry");
 const SupervisionMeeting = require("../Schema/SupervisionMeeting");
-const { normalizeWeekStart, buildSummary } = require("../Services/supervision");
+const SupervisionAssignment = require("../Schema/SupervisionAssignment");
+const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES } = SupervisionAssignment;
+const {
+  normalizeWeekStart,
+  buildSummary,
+  buildMonthlyProgress,
+} = require("../Services/supervision");
 const {
   ensureAuth,
   ensureSupervisee,
@@ -99,6 +106,15 @@ async function getDashboard(req, res, next) {
       buildSummary(req.profile),
     ]);
     res.json({ profile, summary });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Month-by-month series for the progress charts, computed from the logs. */
+async function getProgress(req, res, next) {
+  try {
+    res.json(await buildMonthlyProgress(req.profile));
   } catch (err) {
     next(err);
   }
@@ -294,6 +310,180 @@ async function deleteMeeting(req, res, next) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Assignments — optional. Every field may be left blank; only a wholly
+ * empty assignment is refused, since it would show as a row of dashes.
+ * ------------------------------------------------------------------ */
+
+const ASSIGNMENT_LIMITS = { title: 200, description: 5000, response: 5000, feedback: 5000 };
+
+/** "" clears the link; anything else must be http(s), so it can't be a
+ *  javascript: URL rendered as a clickable link on the other person's screen. */
+function parseLink(value) {
+  const link = String(value ?? "").trim();
+  if (!link) return "";
+  try {
+    const url = new URL(link);
+    return ["http:", "https:"].includes(url.protocol) ? link : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Copies the supervisor-editable fields from the body onto `assignment`.
+ *  Returns an error message, or null when everything present was valid. */
+function applyAssignmentFields(assignment, body = {}) {
+  for (const key of ["title", "description", "feedback"]) {
+    if (body[key] === undefined) continue;
+    const text = key === "title" ? String(body[key]).trim() : String(body[key]);
+    if (text.length > ASSIGNMENT_LIMITS[key]) {
+      return `${key[0].toUpperCase()}${key.slice(1)} is too long`;
+    }
+    assignment[key] = text;
+  }
+
+  if (body.dueDate !== undefined) {
+    if (!body.dueDate) {
+      assignment.dueDate = null;
+    } else {
+      const due = parseDate(body.dueDate);
+      if (!due) return "Invalid due date";
+      assignment.dueDate = due;
+    }
+  }
+
+  if (body.link !== undefined) {
+    const link = parseLink(body.link);
+    if (link === null) return "The link must start with http:// or https://";
+    assignment.link = link;
+  }
+
+  if (body.status !== undefined) {
+    if (!ASSIGNMENT_STATUSES.includes(body.status)) return "Invalid status";
+    assignment.status = body.status;
+  }
+
+  return null;
+}
+
+const isBlankAssignment = (a) => !a.title && !a.description.trim() && !a.link;
+
+async function findAssignment(req, res) {
+  // Checked here so a malformed id is a 404, not a CastError 500.
+  if (!mongoose.isValidObjectId(req.params.assignmentId)) {
+    res.status(404).json({ message: "Assignment not found" });
+    return null;
+  }
+  const assignment = await SupervisionAssignment.findOne({
+    _id: req.params.assignmentId,
+    superviseeId: req.profile._id,
+  });
+  if (!assignment) res.status(404).json({ message: "Assignment not found" });
+  return assignment;
+}
+
+async function listAssignments(req, res, next) {
+  try {
+    const assignments = await SupervisionAssignment.find({ superviseeId: req.profile._id })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ assignments });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createAssignment(req, res, next) {
+  try {
+    const assignment = new SupervisionAssignment({
+      superviseeId: req.profile._id,
+      createdBy: req.user._id,
+    });
+    const error = applyAssignmentFields(assignment, req.body);
+    if (error) return res.status(400).json({ message: error });
+    if (isBlankAssignment(assignment)) {
+      return res.status(400).json({ message: "Add a title, a description or a link" });
+    }
+
+    await assignment.save();
+    res.status(201).json({ assignment });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateAssignment(req, res, next) {
+  try {
+    const assignment = await findAssignment(req, res);
+    if (!assignment) return;
+
+    const error = applyAssignmentFields(assignment, req.body);
+    if (error) return res.status(400).json({ message: error });
+    if (isBlankAssignment(assignment)) {
+      return res.status(400).json({ message: "Add a title, a description or a link" });
+    }
+
+    await assignment.save();
+    res.json({ assignment });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteAssignment(req, res, next) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.assignmentId)) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+    const result = await SupervisionAssignment.deleteOne({
+      _id: req.params.assignmentId,
+      superviseeId: req.profile._id,
+    });
+    if (!result.deletedCount) return res.status(404).json({ message: "Assignment not found" });
+    res.json({ message: "Assignment deleted" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * The supervisee's half: progress and a response, nothing else. Title, due
+ * date and feedback are the supervisor's, so they are ignored if sent, and
+ * "completed" is her sign-off — a supervisee can't award it to themselves,
+ * nor reopen work she has already signed off.
+ */
+async function respondToAssignment(req, res, next) {
+  try {
+    const assignment = await findAssignment(req, res);
+    if (!assignment) return;
+
+    if (req.body?.status !== undefined) {
+      if (!SUPERVISEE_STATUSES.includes(req.body.status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      if (assignment.status === "completed") {
+        return res
+          .status(400)
+          .json({ message: "Your supervisor has marked this complete" });
+      }
+      assignment.status = req.body.status;
+    }
+
+    if (req.body?.response !== undefined) {
+      const response = String(req.body.response);
+      if (response.length > ASSIGNMENT_LIMITS.response) {
+        return res.status(400).json({ message: "Response is too long" });
+      }
+      assignment.response = response;
+    }
+
+    await assignment.save();
+    res.json({ assignment });
+  } catch (err) {
+    next(err);
+  }
+}
+
 /**
  * A temporary password for an account the supervisor creates. Random from
  * crypto, not Math.random, and drawn from an alphabet with no 0/O/1/l so it
@@ -311,6 +501,7 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * ------------------------------------------------------------------ */
 
 router.get("/me", ensureAuth, ensureSupervisee, scopeFromSession, getDashboard);
+router.get("/me/progress", ensureAuth, ensureSupervisee, scopeFromSession, getProgress);
 router.get("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, listHours);
 router.post("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, createHours);
 router.patch("/me/hours/:entryId", ensureAuth, ensureSupervisee, scopeFromSession, updateHours);
@@ -318,6 +509,16 @@ router.delete("/me/hours/:entryId", ensureAuth, ensureSupervisee, scopeFromSessi
 
 // Read-only: supervision hours are the supervisor's record of contact time.
 router.get("/me/meetings", ensureAuth, ensureSupervisee, scopeFromSession, listMeetings);
+
+// Assignments: read, plus progress and a response — never the brief itself.
+router.get("/me/assignments", ensureAuth, ensureSupervisee, scopeFromSession, listAssignments);
+router.patch(
+  "/me/assignments/:assignmentId",
+  ensureAuth,
+  ensureSupervisee,
+  scopeFromSession,
+  respondToAssignment,
+);
 
 /* ------------------------------------------------------------------ *
  * Supervisor routes
@@ -429,6 +630,13 @@ router.post("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next)
 });
 
 router.get("/supervisees/:id", ensureAuth, ensureSupervisor, scopeFromParam, getDashboard);
+router.get(
+  "/supervisees/:id/progress",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  getProgress,
+);
 
 router.patch(
   "/supervisees/:id",
@@ -552,6 +760,36 @@ router.delete(
   ensureSupervisor,
   scopeFromParam,
   deleteMeeting,
+);
+
+// Assignments are supervisor-authored; the supervisee only responds (above).
+router.get(
+  "/supervisees/:id/assignments",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  listAssignments,
+);
+router.post(
+  "/supervisees/:id/assignments",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  createAssignment,
+);
+router.patch(
+  "/supervisees/:id/assignments/:assignmentId",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  updateAssignment,
+);
+router.delete(
+  "/supervisees/:id/assignments/:assignmentId",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  deleteAssignment,
 );
 
 module.exports = router;

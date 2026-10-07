@@ -15,8 +15,10 @@ import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { toast } from "react-toastify";
 
+import AssignmentsSection from "./AssignmentsSection";
 import HoursSection from "./HoursSection";
 import MeetingsSection from "./MeetingsSection";
+import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
 import {
   apiError,
@@ -82,6 +84,18 @@ export default function SuperviseeDetail() {
     [id],
   );
 
+  const progressApi = React.useMemo(() => ({ load: () => supervisorApi.progress(id) }), [id]);
+
+  const assignmentsApi = React.useMemo(
+    () => ({
+      list: () => supervisorApi.listAssignments(id),
+      add: (body) => supervisorApi.addAssignment(id, body),
+      update: (assignmentId, body) => supervisorApi.updateAssignment(id, assignmentId, body),
+      remove: (assignmentId) => supervisorApi.deleteAssignment(id, assignmentId),
+    }),
+    [id],
+  );
+
   const handleResetPassword = async () => {
     if (!window.confirm("Issue a new temporary password? Their current one stops working.")) {
       return;
@@ -132,6 +146,8 @@ export default function SuperviseeDetail() {
       />
 
       <SummaryCards summary={summary} />
+      {/* refreshKey: a new dashboard payload after any edit redraws the charts. */}
+      <ProgressSection progressApi={progressApi} refreshKey={data} />
 
       {profile.supervisorNotes && (
         <Alert severity="info" icon={false}>
@@ -146,6 +162,7 @@ export default function SuperviseeDetail() {
 
       <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
       <MeetingsSection meetingsApi={meetingsApi} canEdit onChanged={loadDashboard} />
+      <AssignmentsSection assignmentsApi={assignmentsApi} isSupervisor onChanged={loadDashboard} />
 
       {editOpen && (
         <EditSuperviseeDialog

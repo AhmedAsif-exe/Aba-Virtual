@@ -8,6 +8,7 @@
 
 const WorkHoursEntry = require("../Schema/WorkHoursEntry");
 const SupervisionMeeting = require("../Schema/SupervisionMeeting");
+const SupervisionAssignment = require("../Schema/SupervisionAssignment");
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -74,4 +75,90 @@ async function buildSummary(profile) {
   };
 }
 
-module.exports = { normalizeWeekStart, buildSummary, round2 };
+/* ------------------------------------------------------------------ *
+ * Monthly progress — the series behind the dashboard charts
+ * ------------------------------------------------------------------ */
+
+// Ten years of months. Only a typo'd far-future week could push past it,
+// and that should not turn into a ten-thousand-row response.
+const MAX_MONTHS = 120;
+
+const monthIndex = (date) => date.getUTCFullYear() * 12 + date.getUTCMonth();
+const monthKey = (index) =>
+  `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+
+/**
+ * One row per calendar month (UTC), from the month supervision started (or
+ * the earliest record, if earlier) through the current month, empty months
+ * included so the chart's x-axis is continuous.
+ *
+ * A week of hours counts in the month its Monday falls in — the same week
+ * key the hours log already files it under, so a week is never split or
+ * counted twice. Supervision % is null for a month with no fieldwork rather
+ * than 0 or infinity: there is nothing to divide by.
+ */
+async function buildMonthlyProgress(profile) {
+  const match = { superviseeId: profile._id };
+
+  const [weeks, meetings, completed] = await Promise.all([
+    WorkHoursEntry.find(match).select("weekStartDate hours").lean(),
+    SupervisionMeeting.find(match).select("date durationMinutes format").lean(),
+    SupervisionAssignment.find({ ...match, status: "completed" })
+      .select("completedAt updatedAt")
+      .lean(),
+  ]);
+
+  const dated = [
+    ...weeks.map((w) => ({ at: new Date(w.weekStartDate), kind: "hours", value: w.hours })),
+    ...meetings.map((m) => ({
+      at: new Date(m.date),
+      kind: m.format === "group" ? "group" : "individual",
+      value: m.durationMinutes / 60,
+    })),
+    // updatedAt covers anything completed before completedAt existed.
+    ...completed.map((a) => ({ at: new Date(a.completedAt || a.updatedAt), kind: "done", value: 1 })),
+  ].filter((r) => !Number.isNaN(r.at.getTime()));
+
+  const now = monthIndex(new Date());
+  const starts = dated.map((r) => monthIndex(r.at));
+  if (profile.supervisionStartDate) starts.push(monthIndex(new Date(profile.supervisionStartDate)));
+  let first = starts.length ? Math.min(...starts) : now;
+  const last = Math.max(now, ...starts);
+  first = Math.max(first, last - MAX_MONTHS + 1);
+
+  const rows = new Map();
+  for (let i = first; i <= last; i += 1) {
+    rows.set(i, { fieldwork: 0, individual: 0, group: 0, done: 0 });
+  }
+  for (const r of dated) {
+    const row = rows.get(monthIndex(r.at));
+    if (!row) continue; // before the capped window
+    if (r.kind === "hours") row.fieldwork += r.value;
+    else if (r.kind === "done") row.done += r.value;
+    else row[r.kind] += r.value;
+  }
+
+  let cumulativeSupervision = 0;
+  let cumulativeFieldwork = 0;
+  const months = [];
+  for (const [index, row] of rows) {
+    const supervision = row.individual + row.group;
+    cumulativeSupervision += supervision;
+    cumulativeFieldwork += row.fieldwork;
+    months.push({
+      month: monthKey(index),
+      fieldworkHours: round2(row.fieldwork),
+      supervisionHours: round2(supervision),
+      individualHours: round2(row.individual),
+      groupHours: round2(row.group),
+      supervisionPct: row.fieldwork > 0 ? Math.round((supervision / row.fieldwork) * 1000) / 10 : null,
+      cumulativeSupervisionHours: round2(cumulativeSupervision),
+      cumulativeFieldworkHours: round2(cumulativeFieldwork),
+      assignmentsCompleted: row.done,
+    });
+  }
+
+  return { months };
+}
+
+module.exports = { normalizeWeekStart, buildSummary, buildMonthlyProgress, round2 };

@@ -5,8 +5,10 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import { toast } from "react-toastify";
 
+import AssignmentsSection from "./AssignmentsSection";
 import HoursSection from "./HoursSection";
 import MeetingsSection from "./MeetingsSection";
+import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
 import { apiError, formatDate, formatHours, superviseeApi } from "./portalApi";
 
@@ -49,6 +51,16 @@ export default function SuperviseeDashboard() {
 
   const meetingsApi = React.useMemo(() => ({ list: superviseeApi.listMeetings }), []);
 
+  const progressApi = React.useMemo(() => ({ load: superviseeApi.progress }), []);
+
+  const assignmentsApi = React.useMemo(
+    () => ({
+      list: superviseeApi.listAssignments,
+      update: superviseeApi.respondToAssignment,
+    }),
+    [],
+  );
+
   if (loading) return <PortalLoading />;
   if (!data) return null;
 
@@ -72,6 +84,8 @@ export default function SuperviseeDashboard() {
       />
 
       <SummaryCards summary={summary} />
+      {/* refreshKey: a new dashboard payload after any edit redraws the charts. */}
+      <ProgressSection progressApi={progressApi} refreshKey={data} />
 
       <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
@@ -97,6 +111,8 @@ export default function SuperviseeDashboard() {
 
       <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
       <MeetingsSection meetingsApi={meetingsApi} canEdit={false} />
+      {/* Hidden until the supervisor sets one — many never will. */}
+      <AssignmentsSection assignmentsApi={assignmentsApi} hideWhenEmpty onChanged={loadDashboard} />
     </PortalContainer>
   );
 }

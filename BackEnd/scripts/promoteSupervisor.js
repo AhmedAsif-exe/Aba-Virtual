@@ -1,7 +1,7 @@
 /**
  * Grants an existing account the supervisor role.
  *
- *   node scripts/promoteSupervisor.js ffazian.aba@gmail.com
+ *   node scripts/promoteSupervisor.js ffaizan.aba@gmail.com
  *
  * Deliberately a script and not a route. Supervisor access reaches every
  * trainee's hour log and private notes, so there is nothing on the network —

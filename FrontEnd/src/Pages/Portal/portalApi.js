@@ -9,17 +9,22 @@ import api from "axiosInstance";
 
 export const superviseeApi = {
   dashboard: () => api.get("/supervision/me"),
+  progress: () => api.get("/supervision/me/progress"),
   listHours: () => api.get("/supervision/me/hours"),
   addHours: (body) => api.post("/supervision/me/hours", body),
   updateHours: (entryId, body) => api.patch(`/supervision/me/hours/${entryId}`, body),
   deleteHours: (entryId) => api.delete(`/supervision/me/hours/${entryId}`),
   listMeetings: () => api.get("/supervision/me/meetings"),
+  listAssignments: () => api.get("/supervision/me/assignments"),
+  respondToAssignment: (assignmentId, body) =>
+    api.patch(`/supervision/me/assignments/${assignmentId}`, body),
 };
 
 export const supervisorApi = {
   listSupervisees: () => api.get("/supervision/supervisees"),
   createSupervisee: (body) => api.post("/supervision/supervisees", body),
   dashboard: (id) => api.get(`/supervision/supervisees/${id}`),
+  progress: (id) => api.get(`/supervision/supervisees/${id}/progress`),
   updateSupervisee: (id, body) => api.patch(`/supervision/supervisees/${id}`, body),
   resetPassword: (id) => api.post(`/supervision/supervisees/${id}/reset-password`),
 
@@ -36,6 +41,13 @@ export const supervisorApi = {
     api.patch(`/supervision/supervisees/${id}/meetings/${meetingId}`, body),
   deleteMeeting: (id, meetingId) =>
     api.delete(`/supervision/supervisees/${id}/meetings/${meetingId}`),
+
+  listAssignments: (id) => api.get(`/supervision/supervisees/${id}/assignments`),
+  addAssignment: (id, body) => api.post(`/supervision/supervisees/${id}/assignments`, body),
+  updateAssignment: (id, assignmentId, body) =>
+    api.patch(`/supervision/supervisees/${id}/assignments/${assignmentId}`, body),
+  deleteAssignment: (id, assignmentId) =>
+    api.delete(`/supervision/supervisees/${id}/assignments/${assignmentId}`),
 };
 
 export const boardsApi = {

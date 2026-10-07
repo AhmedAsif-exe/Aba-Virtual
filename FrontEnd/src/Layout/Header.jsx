@@ -53,7 +53,7 @@ export default function AppAppBar() {
   // server-side, so this is navigation, not security.
   const portalLink =
     user?.portalRole === "supervisor"
-      ? { to: "/portal/supervisees", label: "Supervisees" }
+      ? { to: "/portal/supervisees", label: "Supervision" }
       : user?.portalRole === "supervisee"
         ? { to: "/portal", label: "My supervision" }
         : null;
