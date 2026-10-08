@@ -188,14 +188,6 @@ export default function SupervisionPlans() {
           })}
         </Box>
       )}
-
-      {!plan?.complimentary && (
-        <Typography variant="caption" color="text.secondary">
-          Paid securely through PayFast and charged in Pakistani rupees at today's rate. Plans
-          don't renew automatically — we'll remind you on your dashboard before yours ends.
-          Supervisees use the portal free under their supervisor.
-        </Typography>
-      )}
     </PortalContainer>
   );
 }
