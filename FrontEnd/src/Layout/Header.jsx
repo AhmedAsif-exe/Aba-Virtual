@@ -25,6 +25,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SchoolIcon from "@mui/icons-material/School";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate } from "react-router-dom";
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   display: "flex",
@@ -58,6 +59,9 @@ export default function AppAppBar() {
         ? { to: "/portal", label: "My supervision" }
         : // Everyone else is a potential supervisor: offer the plans.
           { to: "/supervision-plans", label: "Supervision portal" };
+  // View-only portals other supervisors have shared with this email.
+  const sharedLink =
+    user?.sharedWithMe > 0 ? { to: "/portal/shared", label: "Shared with me" } : null;
   const toggleDrawer = (newOpen) => () => {
     setOpen(newOpen);
   };
@@ -220,6 +224,19 @@ export default function AppAppBar() {
                       {portalLink.label}
                     </MenuItem>
                   )}
+                  {sharedLink && (
+                    <MenuItem
+                      onClick={() => {
+                        setProfileMenuAnchor(null);
+                        navigate(sharedLink.to);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <VisibilityIcon fontSize="small" />
+                      </ListItemIcon>
+                      {sharedLink.label}
+                    </MenuItem>
+                  )}
                   <MenuItem
                     onClick={() => {
                       setProfileMenuAnchor(null);
@@ -378,6 +395,17 @@ export default function AppAppBar() {
                           <SchoolIcon fontSize="small" sx={{ color: "white" }} />
                         </ListItemIcon>
                         {portalLink.label}
+                      </MenuItem>
+                    )}
+                    {sharedLink && (
+                      <MenuItem
+                        onClick={() => handleNavigation(sharedLink.to)}
+                        sx={{ color: "white" }}
+                      >
+                        <ListItemIcon>
+                          <VisibilityIcon fontSize="small" sx={{ color: "white" }} />
+                        </ListItemIcon>
+                        {sharedLink.label}
                       </MenuItem>
                     )}
                     <MenuItem

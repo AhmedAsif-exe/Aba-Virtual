@@ -20,7 +20,14 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { toast } from "react-toastify";
 
-import { apiError, formatDate, formatHours, mondayOf, toDateInput } from "./portalApi";
+import {
+  apiError,
+  formatDate,
+  formatHours,
+  mondayOf,
+  toDateInput,
+  weekRangeLabel,
+} from "./portalApi";
 
 /**
  * Weekly fieldwork hours.
@@ -98,7 +105,7 @@ export default function HoursSection({ hoursApi, canEdit = true, onChanged }) {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Week starting</TableCell>
+              <TableCell>Week</TableCell>
               <TableCell align="right">Hours</TableCell>
               <TableCell>Note</TableCell>
               {canEdit && <TableCell align="right">Actions</TableCell>}
@@ -125,7 +132,9 @@ export default function HoursSection({ hoursApi, canEdit = true, onChanged }) {
 
             {entries.map((entry) => (
               <TableRow key={entry._id} hover>
-                <TableCell>{formatDate(entry.weekStartDate)}</TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                  {weekRangeLabel(toDateInput(entry.weekStartDate))}
+                </TableCell>
                 <TableCell align="right">{formatHours(entry.hours)}</TableCell>
                 <TableCell sx={{ color: "text.secondary" }}>{entry.note || "—"}</TableCell>
                 {canEdit && (
@@ -213,8 +222,13 @@ function HoursDialog({ entry, hoursApi, onClose, onSaved }) {
               onChange={(e) => setWeekStartDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
               // Any day in the week is accepted; the server snaps it to the
-              // Monday, so picking Wednesday logs that same week.
-              helperText="Any day in the week — it's filed under that week's Monday"
+              // Monday, so picking Wednesday logs that same week. Showing the
+              // resulting range live stops that looking like an ignored edit.
+              helperText={
+                weekStartDate
+                  ? `Saved as the week ${weekRangeLabel(weekStartDate)}`
+                  : "Pick any day in the week"
+              }
               required
               fullWidth
             />

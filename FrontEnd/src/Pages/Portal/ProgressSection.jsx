@@ -96,7 +96,11 @@ export default function ProgressSection({ progressApi, refreshKey }) {
   );
   // Only for supervisors who use assignments — the rest never see the tab.
   const usesAssignments = months.some((m) => m.assignmentsCompleted > 0);
-  const activeTab = tab === "assignments" && !usesAssignments ? "fieldwork" : tab;
+  // Ratings are optional too: the tab and tile appear once one is given.
+  const usesRatings = months.some((m) => m.averageRating != null);
+  const hiddenTab =
+    (tab === "assignments" && !usesAssignments) || (tab === "rating" && !usesRatings);
+  const activeTab = hiddenTab ? "fieldwork" : tab;
 
   return (
     <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -138,7 +142,11 @@ export default function ProgressSection({ progressApi, refreshKey }) {
         </Typography>
       ) : (
         <>
-          <MonthComparison months={months} usesAssignments={usesAssignments} />
+          <MonthComparison
+            months={months}
+            usesAssignments={usesAssignments}
+            usesRatings={usesRatings}
+          />
 
           <Tabs
             value={activeTab}
@@ -153,6 +161,9 @@ export default function ProgressSection({ progressApi, refreshKey }) {
             <Tab value="cumulative" label="Cumulative supervision" sx={{ textTransform: "none" }} />
             {usesAssignments && (
               <Tab value="assignments" label="Assignments completed" sx={{ textTransform: "none" }} />
+            )}
+            {usesRatings && (
+              <Tab value="rating" label="Average rating" sx={{ textTransform: "none" }} />
             )}
             <Tab value="table" label="Table" sx={{ textTransform: "none" }} />
           </Tabs>
@@ -189,7 +200,20 @@ export default function ProgressSection({ progressApi, refreshKey }) {
               integer
             />
           )}
-          {activeTab === "table" && <ProgressTable rows={rows} usesAssignments={usesAssignments} />}
+          {activeTab === "rating" && (
+            <SingleLineChart
+              rows={rows}
+              dataKey="averageRating"
+              name="Average rating"
+              format={(v) => (v == null ? "—" : `${formatHours(v)} / 10`)}
+              domain={[0, 10]}
+              connectNulls
+              note="Average of the 1–10 scores given in each month. Months without a score are skipped."
+            />
+          )}
+          {activeTab === "table" && (
+            <ProgressTable rows={rows} usesAssignments={usesAssignments} usesRatings={usesRatings} />
+          )}
         </>
       )}
     </Card>
@@ -200,7 +224,7 @@ export default function ProgressSection({ progressApi, refreshKey }) {
  * This month against last month
  * ---------------------------------------------------------------- */
 
-function MonthComparison({ months, usesAssignments }) {
+function MonthComparison({ months, usesAssignments, usesRatings }) {
   const current = months.at(-1);
   const previous = months.length > 1 ? months.at(-2) : null;
 
@@ -214,6 +238,14 @@ function MonthComparison({ months, usesAssignments }) {
       label: "Assignments completed",
       key: "assignmentsCompleted",
       format: String,
+      unit: "",
+    });
+  }
+  if (usesRatings) {
+    tiles.push({
+      label: "Average rating",
+      key: "averageRating",
+      format: (v) => (v == null ? "—" : `${formatHours(v)}/10`),
       unit: "",
     });
   }
@@ -391,7 +423,7 @@ function SupervisionChart({ rows }) {
   );
 }
 
-function SingleLineChart({ rows, dataKey, name, format, tickFormat, note }) {
+function SingleLineChart({ rows, dataKey, name, format, tickFormat, note, domain, connectNulls = false }) {
   return (
     <>
       <Box sx={{ width: "100%", height: CHART_HEIGHT }}>
@@ -399,7 +431,7 @@ function SingleLineChart({ rows, dataKey, name, format, tickFormat, note }) {
           <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: -12 }}>
             <CartesianGrid vertical={false} stroke={COLORS.grid} />
             <XAxis dataKey="month" tickFormatter={shortMonth} {...axisProps} />
-            <YAxis tickFormatter={tickFormat} {...axisProps} />
+            <YAxis tickFormatter={tickFormat} domain={domain} {...axisProps} />
             <Tooltip
               cursor={{ stroke: COLORS.axis, strokeDasharray: "3 3" }}
               content={<ChartTooltip format={format} />}
@@ -412,7 +444,7 @@ function SingleLineChart({ rows, dataKey, name, format, tickFormat, note }) {
               strokeWidth={2}
               dot={{ r: 4, fill: COLORS.primary, stroke: "#fff", strokeWidth: 2 }}
               activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }}
-              connectNulls={false}
+              connectNulls={connectNulls}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -426,7 +458,7 @@ function SingleLineChart({ rows, dataKey, name, format, tickFormat, note }) {
  * Every variable, month by month — for comparing exact figures
  * ---------------------------------------------------------------- */
 
-function ProgressTable({ rows, usesAssignments }) {
+function ProgressTable({ rows, usesAssignments, usesRatings }) {
   const newestFirst = [...rows].reverse();
   return (
     <TableContainer>
@@ -441,6 +473,7 @@ function ProgressTable({ rows, usesAssignments }) {
             <TableCell align="right">Group hrs</TableCell>
             <TableCell align="right">Cumulative supervision hrs</TableCell>
             {usesAssignments && <TableCell align="right">Assignments completed</TableCell>}
+            {usesRatings && <TableCell align="right">Average rating</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -454,6 +487,11 @@ function ProgressTable({ rows, usesAssignments }) {
               <TableCell align="right">{formatHours(m.groupHours)}</TableCell>
               <TableCell align="right">{formatHours(m.cumulativeSupervisionHours)}</TableCell>
               {usesAssignments && <TableCell align="right">{m.assignmentsCompleted}</TableCell>}
+              {usesRatings && (
+                <TableCell align="right">
+                  {m.averageRating == null ? "—" : formatHours(m.averageRating)}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

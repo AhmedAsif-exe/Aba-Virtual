@@ -14,6 +14,25 @@ const ASSIGNMENT_STATUSES = ["not_started", "in_progress", "submitted", "complet
 // What a supervisee may set. "completed" is the supervisor's sign-off.
 const SUPERVISEE_STATUSES = ["not_started", "in_progress", "submitted"];
 
+const ASSIGNMENT_KINDS = ["assignment", "presentation"];
+
+/**
+ * A file the supervisor attached (a research article, a worksheet). Stored on
+ * the server's disk outside the public /uploads folder and only ever served
+ * through an authenticated route, so a file is as private as its assignment.
+ */
+const attachmentSchema = new mongoose.Schema(
+  {
+    originalName: { type: String, required: true },
+    // Random name on disk; never derived from what the uploader called it.
+    storedName: { type: String, required: true },
+    mimeType: { type: String, default: "application/octet-stream" },
+    size: { type: Number, default: 0 },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+  { timestamps: { createdAt: "uploadedAt", updatedAt: false } },
+);
+
 const supervisionAssignmentSchema = new mongoose.Schema(
   {
     superviseeId: {
@@ -22,6 +41,8 @@ const supervisionAssignmentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
+    kind: { type: String, enum: ASSIGNMENT_KINDS, default: "assignment" },
 
     title: { type: String, default: "", trim: true, maxlength: 200 },
     description: { type: String, default: "", maxlength: 5000 },
@@ -44,6 +65,13 @@ const supervisionAssignmentSchema = new mongoose.Schema(
     // The supervisor's side, once she has looked at it.
     feedback: { type: String, default: "", maxlength: 5000 },
 
+    // Optional 1-10 score from the supervisor. `ratedAt` places it in a month
+    // for the progress chart; kept in step by the pre-validate hook below.
+    rating: { type: Number, min: 1, max: 10, default: null },
+    ratedAt: { type: Date, default: null },
+
+    attachments: { type: [attachmentSchema], default: [] },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -65,6 +93,9 @@ supervisionAssignmentSchema.pre("validate", function syncCompletedAt() {
   } else {
     this.completedAt = null;
   }
+
+  if (this.rating == null) this.ratedAt = null;
+  else if (this.isModified("rating") || !this.ratedAt) this.ratedAt = new Date();
 });
 
 const SupervisionAssignment = mongoose.model(
@@ -75,3 +106,4 @@ const SupervisionAssignment = mongoose.model(
 module.exports = SupervisionAssignment;
 module.exports.ASSIGNMENT_STATUSES = ASSIGNMENT_STATUSES;
 module.exports.SUPERVISEE_STATUSES = SUPERVISEE_STATUSES;
+module.exports.ASSIGNMENT_KINDS = ASSIGNMENT_KINDS;

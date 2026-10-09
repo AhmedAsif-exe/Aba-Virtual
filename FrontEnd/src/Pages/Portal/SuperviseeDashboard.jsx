@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import AssignmentsSection from "./AssignmentsSection";
 import HoursSection from "./HoursSection";
 import MeetingsSection from "./MeetingsSection";
+import PaymentsSection from "./PaymentsSection";
 import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
 import { apiError, formatDate, formatHours, superviseeApi } from "./portalApi";
@@ -57,9 +58,12 @@ export default function SuperviseeDashboard() {
     () => ({
       list: superviseeApi.listAssignments,
       update: superviseeApi.respondToAssignment,
+      fileUrl: superviseeApi.attachmentUrl,
     }),
     [],
   );
+
+  const paymentsApi = React.useMemo(() => ({ list: superviseeApi.listPayments }), []);
 
   if (loading) return <PortalLoading />;
   if (!data) return null;
@@ -112,7 +116,14 @@ export default function SuperviseeDashboard() {
       <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
       <MeetingsSection meetingsApi={meetingsApi} canEdit={false} />
       {/* Hidden until the supervisor sets one — many never will. */}
-      <AssignmentsSection assignmentsApi={assignmentsApi} hideWhenEmpty onChanged={loadDashboard} />
+      <AssignmentsSection
+        assignmentsApi={assignmentsApi}
+        mode="supervisee"
+        hideWhenEmpty
+        onChanged={loadDashboard}
+      />
+      {/* Hidden until the supervisor records a payment. */}
+      <PaymentsSection paymentsApi={paymentsApi} mode="supervisee" />
     </PortalContainer>
   );
 }

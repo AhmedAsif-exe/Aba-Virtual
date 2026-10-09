@@ -18,12 +18,14 @@ import { toast } from "react-toastify";
 import AssignmentsSection from "./AssignmentsSection";
 import HoursSection from "./HoursSection";
 import MeetingsSection from "./MeetingsSection";
+import PaymentsSection from "./PaymentsSection";
 import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
 import {
   apiError,
   boardsApi,
   formatDate,
+  spelledDate,
   supervisorApi,
   toDateInput,
 } from "./portalApi";
@@ -92,6 +94,21 @@ export default function SuperviseeDetail() {
       add: (body) => supervisorApi.addAssignment(id, body),
       update: (assignmentId, body) => supervisorApi.updateAssignment(id, assignmentId, body),
       remove: (assignmentId) => supervisorApi.deleteAssignment(id, assignmentId),
+      upload: (assignmentId, files) => supervisorApi.uploadAttachments(id, assignmentId, files),
+      removeAttachment: (assignmentId, attachmentId) =>
+        supervisorApi.deleteAttachment(id, assignmentId, attachmentId),
+      fileUrl: (assignmentId, attachmentId) =>
+        supervisorApi.attachmentUrl(id, assignmentId, attachmentId),
+    }),
+    [id],
+  );
+
+  const paymentsApi = React.useMemo(
+    () => ({
+      list: () => supervisorApi.listPayments(id),
+      set: (month, body) => supervisorApi.setPayment(id, month, body),
+      remind: (month) => supervisorApi.remindPayment(id, month),
+      clear: (month) => supervisorApi.clearPayment(id, month),
     }),
     [id],
   );
@@ -162,7 +179,16 @@ export default function SuperviseeDetail() {
 
       <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
       <MeetingsSection meetingsApi={meetingsApi} canEdit onChanged={loadDashboard} />
-      <AssignmentsSection assignmentsApi={assignmentsApi} isSupervisor onChanged={loadDashboard} />
+      <AssignmentsSection
+        assignmentsApi={assignmentsApi}
+        mode="supervisor"
+        onChanged={loadDashboard}
+      />
+      <PaymentsSection
+        paymentsApi={paymentsApi}
+        mode="supervisor"
+        startDate={profile.supervisionStartDate}
+      />
 
       {editOpen && (
         <EditSuperviseeDialog
@@ -286,6 +312,7 @@ function EditSuperviseeDialog({ profile, onClose, onSaved }) {
                 value={form.supervisionStartDate}
                 onChange={set("supervisionStartDate")}
                 InputLabelProps={{ shrink: true }}
+                helperText={spelledDate(form.supervisionStartDate)}
                 fullWidth
               />
               <TextField

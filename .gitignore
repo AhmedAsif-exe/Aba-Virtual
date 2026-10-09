@@ -8,6 +8,8 @@
 
 # user-uploaded files
 BackEnd/uploads
+# assignment attachments (served only through authenticated routes)
+BackEnd/private-uploads
 
 # testing
 /coverage

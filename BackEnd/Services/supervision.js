@@ -100,11 +100,14 @@ const monthKey = (index) =>
 async function buildMonthlyProgress(profile) {
   const match = { superviseeId: profile._id };
 
-  const [weeks, meetings, completed] = await Promise.all([
+  const [weeks, meetings, completed, rated] = await Promise.all([
     WorkHoursEntry.find(match).select("weekStartDate hours").lean(),
     SupervisionMeeting.find(match).select("date durationMinutes format").lean(),
     SupervisionAssignment.find({ ...match, status: "completed" })
       .select("completedAt updatedAt")
+      .lean(),
+    SupervisionAssignment.find({ ...match, rating: { $ne: null } })
+      .select("rating ratedAt updatedAt")
       .lean(),
   ]);
 
@@ -117,6 +120,8 @@ async function buildMonthlyProgress(profile) {
     })),
     // updatedAt covers anything completed before completedAt existed.
     ...completed.map((a) => ({ at: new Date(a.completedAt || a.updatedAt), kind: "done", value: 1 })),
+    // Scores count in the month they were given.
+    ...rated.map((a) => ({ at: new Date(a.ratedAt || a.updatedAt), kind: "rating", value: a.rating })),
   ].filter((r) => !Number.isNaN(r.at.getTime()));
 
   const now = monthIndex(new Date());
@@ -128,13 +133,17 @@ async function buildMonthlyProgress(profile) {
 
   const rows = new Map();
   for (let i = first; i <= last; i += 1) {
-    rows.set(i, { fieldwork: 0, individual: 0, group: 0, done: 0 });
+    rows.set(i, { fieldwork: 0, individual: 0, group: 0, done: 0, ratingSum: 0, ratingCount: 0 });
   }
   for (const r of dated) {
     const row = rows.get(monthIndex(r.at));
     if (!row) continue; // before the capped window
     if (r.kind === "hours") row.fieldwork += r.value;
     else if (r.kind === "done") row.done += r.value;
+    else if (r.kind === "rating") {
+      row.ratingSum += r.value;
+      row.ratingCount += 1;
+    }
     else row[r.kind] += r.value;
   }
 
@@ -155,6 +164,8 @@ async function buildMonthlyProgress(profile) {
       cumulativeSupervisionHours: round2(cumulativeSupervision),
       cumulativeFieldworkHours: round2(cumulativeFieldwork),
       assignmentsCompleted: row.done,
+      // Mean of the 1-10 scores given that month; null when none were.
+      averageRating: row.ratingCount ? Math.round((row.ratingSum / row.ratingCount) * 10) / 10 : null,
     });
   }
 

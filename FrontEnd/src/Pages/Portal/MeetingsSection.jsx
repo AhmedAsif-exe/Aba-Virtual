@@ -23,7 +23,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { toast } from "react-toastify";
 
-import { apiError, formatDate, formatDuration, toDateInput } from "./portalApi";
+import { apiError, formatDate, formatDuration, spelledDate, toDateInput } from "./portalApi";
 
 const FORMATS = [
   { value: "individual", label: "Individual" },
@@ -37,7 +37,7 @@ const FORMATS = [
  * never write them, since the hours are the supervisor's attestation. The
  * server enforces that independently (there is no POST on /me/meetings).
  */
-export default function MeetingsSection({ meetingsApi, canEdit = false, onChanged }) {
+export default function MeetingsSection({ meetingsApi, canEdit = false, onChanged, subtitle }) {
   const [meetings, setMeetings] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [sortAsc, setSortAsc] = React.useState(false);
@@ -98,9 +98,10 @@ export default function MeetingsSection({ meetingsApi, canEdit = false, onChange
         <Box>
           <Typography variant="h6">Supervision meetings</Typography>
           <Typography variant="body2" color="text.secondary">
-            {canEdit
-              ? "Supervision time you've provided."
-              : "Supervision time provided by your supervisor."}
+            {subtitle ||
+              (canEdit
+                ? "Supervision time you've provided."
+                : "Supervision time provided by your supervisor.")}
           </Typography>
         </Box>
         {canEdit && (
@@ -245,6 +246,7 @@ function MeetingDialog({ meeting, meetingsApi, onClose, onSaved }) {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
+              helperText={spelledDate(date) || "Pick the meeting date"}
               required
               fullWidth
             />

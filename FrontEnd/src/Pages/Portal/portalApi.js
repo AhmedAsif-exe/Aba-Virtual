@@ -18,6 +18,9 @@ export const superviseeApi = {
   listAssignments: () => api.get("/supervision/me/assignments"),
   respondToAssignment: (assignmentId, body) =>
     api.patch(`/supervision/me/assignments/${assignmentId}`, body),
+  attachmentUrl: (assignmentId, attachmentId) =>
+    apiUrl(`/supervision/me/assignments/${assignmentId}/attachments/${attachmentId}`),
+  listPayments: () => api.get("/supervision/me/payments"),
 };
 
 export const supervisorApi = {
@@ -48,7 +51,53 @@ export const supervisorApi = {
     api.patch(`/supervision/supervisees/${id}/assignments/${assignmentId}`, body),
   deleteAssignment: (id, assignmentId) =>
     api.delete(`/supervision/supervisees/${id}/assignments/${assignmentId}`),
+  uploadAttachments: (id, assignmentId, files) => {
+    const form = new FormData();
+    Array.from(files).forEach((file) => form.append("files", file));
+    return api.post(`/supervision/supervisees/${id}/assignments/${assignmentId}/attachments`, form);
+  },
+  deleteAttachment: (id, assignmentId, attachmentId) =>
+    api.delete(
+      `/supervision/supervisees/${id}/assignments/${assignmentId}/attachments/${attachmentId}`,
+    ),
+  attachmentUrl: (id, assignmentId, attachmentId) =>
+    apiUrl(`/supervision/supervisees/${id}/assignments/${assignmentId}/attachments/${attachmentId}`),
+
+  listPayments: (id) => api.get(`/supervision/supervisees/${id}/payments`),
+  setPayment: (id, month, body) => api.put(`/supervision/supervisees/${id}/payments/${month}`, body),
+  remindPayment: (id, month) => api.post(`/supervision/supervisees/${id}/payments/${month}/remind`),
+  clearPayment: (id, month) => api.delete(`/supervision/supervisees/${id}/payments/${month}`),
+
+  listShares: () => api.get("/supervision/shares"),
+  addShare: (email) => api.post("/supervision/shares", { email }),
+  removeShare: (shareId) => api.delete(`/supervision/shares/${shareId}`),
 };
+
+/** Read-only access to another supervisor's portal (they shared it with you). */
+export const sharedApi = {
+  supervisors: () => api.get("/supervision/shared"),
+  roster: (supervisorId) => api.get(`/supervision/shared/${supervisorId}/supervisees`),
+  dashboard: (supervisorId, id) => api.get(`/supervision/shared/${supervisorId}/supervisees/${id}`),
+  progress: (supervisorId, id) =>
+    api.get(`/supervision/shared/${supervisorId}/supervisees/${id}/progress`),
+  listHours: (supervisorId, id) =>
+    api.get(`/supervision/shared/${supervisorId}/supervisees/${id}/hours`),
+  listMeetings: (supervisorId, id) =>
+    api.get(`/supervision/shared/${supervisorId}/supervisees/${id}/meetings`),
+  listAssignments: (supervisorId, id) =>
+    api.get(`/supervision/shared/${supervisorId}/supervisees/${id}/assignments`),
+  attachmentUrl: (supervisorId, id, assignmentId, attachmentId) =>
+    apiUrl(
+      `/supervision/shared/${supervisorId}/supervisees/${id}/assignments/${assignmentId}/attachments/${attachmentId}`,
+    ),
+};
+
+/** Absolute URL for a plain link (file downloads open in a new tab, where
+ *  the session cookie authenticates them like any API call). */
+function apiUrl(pathname) {
+  const base = String(api.defaults.baseURL || "").replace(/\/+$/, "");
+  return `${base}${pathname}`;
+}
 
 export const boardsApi = {
   list: (includeRetired = false) =>
@@ -93,6 +142,55 @@ export function formatHours(hours) {
 export function toDateInput(value) {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
+}
+
+/** "Mon 14 Sep – Sun 20 Sep 2026" for the week a picked date is filed under. */
+export function weekRangeLabel(dateInput) {
+  if (!dateInput) return "";
+  const start = new Date(`${mondayOf(new Date(`${dateInput}T12:00:00`))}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) return "";
+  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+  // Built by hand: locale formatting adds commas inconsistently across browsers.
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fmt = (d) =>
+    `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  return `${fmt(start)} – ${fmt(end)} ${end.getUTCFullYear()}`;
+}
+
+/**
+ * "Wednesday 16 September 2026" for a date box's value. Date boxes follow the
+ * computer's region (day/month or month/day), and a date typed in the other
+ * order is silently turned into a different one — spelling it out under the
+ * box makes that visible before saving.
+ */
+export function spelledDate(dateInput) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput || "")) return "";
+  const d = new Date(`${dateInput}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** "October 2026" from "2026-10". */
+export function formatMonthKey(key) {
+  if (!key) return "—";
+  return new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export function formatFileSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** Monday of the week containing `date`, mirroring the server's bucketing. */

@@ -2,6 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 
 const User = require("../Schema/User");
 const SupervisionBoard = require("../Schema/SupervisionBoard");
@@ -9,7 +12,15 @@ const SuperviseeProfile = require("../Schema/SuperviseeProfile");
 const WorkHoursEntry = require("../Schema/WorkHoursEntry");
 const SupervisionMeeting = require("../Schema/SupervisionMeeting");
 const SupervisionAssignment = require("../Schema/SupervisionAssignment");
-const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES } = SupervisionAssignment;
+const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES, ASSIGNMENT_KINDS } = SupervisionAssignment;
+const SupervisionPayment = require("../Schema/SupervisionPayment");
+const SupervisionShare = require("../Schema/SupervisionShare");
+const { planStatus } = require("../Services/supervisionPlans");
+const {
+  sendPaymentReminder,
+  sendShareInvite,
+  sendSuperviseeInvite,
+} = require("../Services/mailer");
 const {
   normalizeWeekStart,
   buildSummary,
@@ -94,7 +105,9 @@ async function loadRefs(profile) {
 
 async function serializeProfile(req, profile) {
   const refs = await loadRefs(profile);
-  return isSupervisor(req)
+  // A read-only viewer may be a supervisor in their own right, so their role
+  // must not unlock the private notes on someone else's supervisee.
+  return !req.readOnlyViewer && isSupervisor(req)
     ? profile.toSupervisorJSON(refs)
     : profile.toSuperviseeJSON(refs);
 }
@@ -363,10 +376,38 @@ function applyAssignmentFields(assignment, body = {}) {
     assignment.status = body.status;
   }
 
+  if (body.kind !== undefined) {
+    if (!ASSIGNMENT_KINDS.includes(body.kind)) return "Invalid type";
+    assignment.kind = body.kind;
+  }
+
+  // Optional 1-10 score; "" or null clears it.
+  if (body.rating !== undefined) {
+    if (body.rating === null || body.rating === "") {
+      assignment.rating = null;
+    } else {
+      const rating = Number(body.rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 10) {
+        return "Rating must be a whole number from 1 to 10";
+      }
+      assignment.rating = rating;
+    }
+  }
+
   return null;
 }
 
-const isBlankAssignment = (a) => !a.title && !a.description.trim() && !a.link;
+/** What leaves the server: everything except where files sit on disk. */
+function assignmentJSON(assignment) {
+  const a = typeof assignment.toObject === "function" ? assignment.toObject() : assignment;
+  return {
+    ...a,
+    attachments: (a.attachments || []).map(({ storedName, ...rest }) => rest),
+  };
+}
+
+const isBlankAssignment = (a) =>
+  !a.title && !a.description.trim() && !a.link && !a.attachments?.length;
 
 async function findAssignment(req, res) {
   // Checked here so a malformed id is a 404, not a CastError 500.
@@ -387,7 +428,7 @@ async function listAssignments(req, res, next) {
     const assignments = await SupervisionAssignment.find({ superviseeId: req.profile._id })
       .sort({ createdAt: -1 })
       .lean();
-    res.json({ assignments });
+    res.json({ assignments: assignments.map(assignmentJSON) });
   } catch (err) {
     next(err);
   }
@@ -406,7 +447,7 @@ async function createAssignment(req, res, next) {
     }
 
     await assignment.save();
-    res.status(201).json({ assignment });
+    res.status(201).json({ assignment: assignmentJSON(assignment) });
   } catch (err) {
     next(err);
   }
@@ -424,7 +465,7 @@ async function updateAssignment(req, res, next) {
     }
 
     await assignment.save();
-    res.json({ assignment });
+    res.json({ assignment: assignmentJSON(assignment) });
   } catch (err) {
     next(err);
   }
@@ -435,11 +476,13 @@ async function deleteAssignment(req, res, next) {
     if (!mongoose.isValidObjectId(req.params.assignmentId)) {
       return res.status(404).json({ message: "Assignment not found" });
     }
-    const result = await SupervisionAssignment.deleteOne({
+    const assignment = await SupervisionAssignment.findOneAndDelete({
       _id: req.params.assignmentId,
       superviseeId: req.profile._id,
     });
-    if (!result.deletedCount) return res.status(404).json({ message: "Assignment not found" });
+    if (!assignment) return res.status(404).json({ message: "Assignment not found" });
+    // Its files go with it; a file nothing points at can never be served.
+    assignment.attachments.forEach((file) => removeStoredFile(file.storedName));
     res.json({ message: "Assignment deleted" });
   } catch (err) {
     next(err);
@@ -478,7 +521,422 @@ async function respondToAssignment(req, res, next) {
     }
 
     await assignment.save();
-    res.json({ assignment });
+    res.json({ assignment: assignmentJSON(assignment) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Assignment attachments — articles, worksheets, images
+ *
+ * Kept in private-uploads/, NOT uploads/: server.js serves uploads/ to
+ * anyone with the URL, while these go out only through the routes below,
+ * after the same scope check as the assignment they belong to.
+ * ------------------------------------------------------------------ */
+
+const ATTACHMENT_DIR = path.join(__dirname, "..", "private-uploads", "assignments");
+fs.mkdirSync(ATTACHMENT_DIR, { recursive: true });
+
+const MAX_ATTACHMENT_MB = 25;
+const MAX_ATTACHMENTS_PER_ASSIGNMENT = 20;
+// Documents and pictures only. No HTML/SVG/scripts: anything a browser
+// would run must never be served back from our own domain.
+const ATTACHMENT_TYPES = new Set([
+  ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".rtf", ".odt",
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic",
+]);
+// Opened in the browser tab rather than downloaded.
+const INLINE_TYPES = new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".txt"]);
+
+const storedPath = (storedName) => path.join(ATTACHMENT_DIR, path.basename(storedName));
+
+function removeStoredFile(storedName) {
+  fs.unlink(storedPath(storedName), (err) => {
+    if (err && err.code !== "ENOENT") console.error("[ATTACHMENT] delete failed:", err.message);
+  });
+}
+
+const attachmentUpload = multer({
+  storage: multer.diskStorage({
+    destination: ATTACHMENT_DIR,
+    filename: (req, file, cb) =>
+      cb(null, `${crypto.randomBytes(16).toString("hex")}${path.extname(file.originalname).toLowerCase()}`),
+  }),
+  limits: { fileSize: MAX_ATTACHMENT_MB * 1024 * 1024, files: 10 },
+  fileFilter: (req, file, cb) => {
+    const ok = ATTACHMENT_TYPES.has(path.extname(file.originalname).toLowerCase());
+    cb(ok ? null : new Error("UNSUPPORTED_TYPE"), ok);
+  },
+}).array("files", 10);
+
+/** Multer's errors become readable 400s instead of a 500. */
+function receiveAttachments(req, res, next) {
+  attachmentUpload(req, res, (err) => {
+    if (!err) return next();
+    (req.files || []).forEach((f) => removeStoredFile(f.filename));
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ message: `Each file must be under ${MAX_ATTACHMENT_MB} MB` });
+    }
+    if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({ message: "Upload up to 10 files at a time" });
+    }
+    if (err.message === "UNSUPPORTED_TYPE") {
+      return res.status(400).json({
+        message: "Only PDF, Word, PowerPoint, Excel, text and image files can be attached",
+      });
+    }
+    return next(err);
+  });
+}
+
+async function addAttachments(req, res, next) {
+  const uploaded = req.files || [];
+  try {
+    if (!uploaded.length) return res.status(400).json({ message: "Choose a file to attach" });
+
+    const assignment = await findAssignment(req, res);
+    if (!assignment) {
+      uploaded.forEach((f) => removeStoredFile(f.filename));
+      return;
+    }
+    if (assignment.attachments.length + uploaded.length > MAX_ATTACHMENTS_PER_ASSIGNMENT) {
+      uploaded.forEach((f) => removeStoredFile(f.filename));
+      return res.status(400).json({
+        message: `An assignment can hold up to ${MAX_ATTACHMENTS_PER_ASSIGNMENT} files`,
+      });
+    }
+
+    for (const file of uploaded) {
+      assignment.attachments.push({
+        // Browsers send UTF-8 names that multer reads as latin1.
+        originalName: Buffer.from(file.originalname, "latin1").toString("utf8").slice(0, 200),
+        storedName: file.filename,
+        mimeType: file.mimetype,
+        size: file.size,
+        uploadedBy: req.user._id,
+      });
+    }
+    await assignment.save();
+    res.status(201).json({ assignment: assignmentJSON(assignment) });
+  } catch (err) {
+    uploaded.forEach((f) => removeStoredFile(f.filename));
+    next(err);
+  }
+}
+
+function findAttachment(assignment, attachmentId) {
+  if (!mongoose.isValidObjectId(attachmentId)) return null;
+  return assignment.attachments.id(attachmentId) || null;
+}
+
+async function downloadAttachment(req, res, next) {
+  try {
+    const assignment = await findAssignment(req, res);
+    if (!assignment) return;
+    const file = findAttachment(assignment, req.params.attachmentId);
+    if (!file) return res.status(404).json({ message: "File not found" });
+
+    const fullPath = storedPath(file.storedName);
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ message: "File not found" });
+
+    const ext = path.extname(file.storedName).toLowerCase();
+    const disposition = INLINE_TYPES.has(ext) ? "inline" : "attachment";
+    res.set({
+      "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "private, no-store",
+    });
+    res.sendFile(fullPath);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteAttachment(req, res, next) {
+  try {
+    const assignment = await findAssignment(req, res);
+    if (!assignment) return;
+    const file = findAttachment(assignment, req.params.attachmentId);
+    if (!file) return res.status(404).json({ message: "File not found" });
+
+    const { storedName } = file;
+    file.deleteOne();
+    await assignment.save();
+    removeStoredFile(storedName);
+    res.json({ assignment: assignmentJSON(assignment) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Supervisee payments — the supervisor's paid / unpaid record per month
+ * ------------------------------------------------------------------ */
+
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const monthLabel = (key) => `${MONTH_NAMES[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
+const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+
+/** A real month, and not absurdly far ahead (a typo, not a prepayment). */
+function parseMonth(value) {
+  const month = String(value || "");
+  if (!MONTH_RE.test(month)) return null;
+  const [y, m] = month.split("-").map(Number);
+  const now = new Date();
+  const ahead = (y - now.getUTCFullYear()) * 12 + (m - 1 - now.getUTCMonth());
+  return ahead > 12 ? null : month;
+}
+
+async function listPayments(req, res, next) {
+  try {
+    const payments = await SupervisionPayment.find({ superviseeId: req.profile._id })
+      .sort({ month: -1 })
+      .lean();
+    res.json({ payments, currentMonth: currentMonthKey() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Emails the supervisee about one unpaid month; records when it went. */
+async function remindAboutPayment(req, payment) {
+  const supervisee = await User.findById(req.profile.userId).select("name email").lean();
+  if (!supervisee?.email) return false;
+  const sent = await sendPaymentReminder({
+    supervisee,
+    supervisor: { name: req.user.name, email: req.user.email },
+    monthLabel: monthLabel(payment.month),
+    amount: payment.amount,
+  });
+  if (sent) {
+    payment.reminderSentAt = new Date();
+    await payment.save();
+  }
+  return sent;
+}
+
+/**
+ * Set one month to paid or unpaid. Turning a month red emails the supervisee
+ * a reminder straight away (unless `notify: false`); re-saving a month that
+ * was already unpaid does not, so editing the amount doesn't spam them.
+ */
+async function setPayment(req, res, next) {
+  try {
+    const month = parseMonth(req.params.month);
+    if (!month) return res.status(400).json({ message: "Invalid month" });
+
+    const { status } = req.body || {};
+    if (!["paid", "unpaid"].includes(status)) {
+      return res.status(400).json({ message: "Status must be paid or unpaid" });
+    }
+
+    let payment = await SupervisionPayment.findOne({ superviseeId: req.profile._id, month });
+    const wasUnpaid = payment?.status === "unpaid";
+    if (!payment) payment = new SupervisionPayment({ superviseeId: req.profile._id, month });
+
+    payment.status = status;
+    if (req.body.amount !== undefined) payment.amount = String(req.body.amount).slice(0, 50);
+    if (req.body.note !== undefined) payment.note = String(req.body.note).slice(0, 500);
+    payment.updatedBy = req.user._id;
+    await payment.save();
+
+    let emailSent = null;
+    if (status === "unpaid" && !wasUnpaid && req.body.notify !== false) {
+      emailSent = await remindAboutPayment(req, payment);
+    }
+    res.json({ payment, emailSent });
+  } catch (err) {
+    if (err?.code === 11000) return res.status(409).json({ message: "Please try again" });
+    next(err);
+  }
+}
+
+async function sendPaymentReminderNow(req, res, next) {
+  try {
+    const month = parseMonth(req.params.month);
+    if (!month) return res.status(400).json({ message: "Invalid month" });
+    const payment = await SupervisionPayment.findOne({ superviseeId: req.profile._id, month });
+    if (!payment || payment.status !== "unpaid") {
+      return res.status(400).json({ message: "Only an unpaid month can be reminded" });
+    }
+    const emailSent = await remindAboutPayment(req, payment);
+    if (!emailSent) return res.status(502).json({ message: "The reminder email could not be sent" });
+    res.json({ payment, emailSent });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function clearPayment(req, res, next) {
+  try {
+    const month = parseMonth(req.params.month);
+    if (!month) return res.status(400).json({ message: "Invalid month" });
+    await SupervisionPayment.deleteOne({ superviseeId: req.profile._id, month });
+    res.json({ message: "Cleared" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Read-only sharing — e.g. the supervisor's own supervisor
+ *
+ * A share is (supervisorId, email). Anyone signed in with that email gets
+ * GET access to every one of that supervisor's supervisees, through the
+ * /shared/:supervisorId/... routes below and nothing else: there are no
+ * write routes under /shared, so "read-only" is structural, not a flag.
+ * ------------------------------------------------------------------ */
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_SHARES = 20;
+
+async function listShares(req, res, next) {
+  try {
+    const shares = await SupervisionShare.find({ supervisorId: req.user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ shares });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createShare(req, res, next) {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ message: "Enter a valid email" });
+    if (email === String(req.user.email || "").toLowerCase()) {
+      return res.status(400).json({ message: "That's your own email" });
+    }
+    if ((await SupervisionShare.countDocuments({ supervisorId: req.user._id })) >= MAX_SHARES) {
+      return res.status(400).json({ message: `You can share with up to ${MAX_SHARES} people` });
+    }
+
+    const share = await SupervisionShare.create({ supervisorId: req.user._id, email });
+    const emailSent = await sendShareInvite({
+      email,
+      supervisor: { name: req.user.name, email: req.user.email },
+    });
+    res.status(201).json({ share, emailSent });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ message: "Already shared with that email" });
+    }
+    next(err);
+  }
+}
+
+async function deleteShare(req, res, next) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.shareId)) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    const result = await SupervisionShare.deleteOne({
+      _id: req.params.shareId,
+      supervisorId: req.user._id,
+    });
+    if (!result.deletedCount) return res.status(404).json({ message: "Not found" });
+    res.json({ message: "Access removed" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Supervisors who have shared with the signed-in email. */
+async function listSharedWithMe(req, res, next) {
+  try {
+    const shares = await SupervisionShare.find({
+      email: String(req.user.email || "").toLowerCase(),
+    }).lean();
+    const supervisors = await User.find({ _id: { $in: shares.map((s) => s.supervisorId) } })
+      .select("name email pfp supervisionPlan")
+      .lean();
+    res.json({
+      supervisors: supervisors.map((u) => ({
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        pfp: u.pfp,
+        // A lapsed plan locks viewers out too, the same as the supervisor.
+        available: planStatus(u).active,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Gate for every /shared/:supervisorId route: the caller's email must hold a
+ * share from that supervisor, and the supervisor's plan must be live. Sets
+ * `req.readOnlyViewer` so shared handlers never treat the viewer as the
+ * supervisor (private notes stay private).
+ */
+async function ensureViewer(req, res, next) {
+  try {
+    const { supervisorId } = req.params;
+    const deny = () => res.status(404).json({ message: "Nothing has been shared with you here" });
+    if (!mongoose.isValidObjectId(supervisorId)) return deny();
+
+    const share = await SupervisionShare.exists({
+      supervisorId,
+      email: String(req.user.email || "").toLowerCase(),
+    });
+    if (!share) return deny();
+
+    const supervisor = await User.findById(supervisorId).select(
+      "name email supervisionPlan portalRole",
+    );
+    if (!supervisor || supervisor.portalRole !== "supervisor") return deny();
+    if (!planStatus(supervisor).active) {
+      return res.status(402).json({ message: "This shared portal isn't available right now" });
+    }
+
+    req.readOnlyViewer = true;
+    req.sharedSupervisor = supervisor;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Like scopeFromParam, but scoped to the sharing supervisor, not the caller. */
+async function scopeFromShare(req, res, next) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return notFound(res);
+    const profile = await SuperviseeProfile.findOne({
+      _id: req.params.id,
+      supervisorId: req.sharedSupervisor._id,
+    });
+    if (!profile) return notFound(res);
+    req.profile = profile;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** The shared roster: same totals as the supervisor's list, no private notes. */
+async function listSharedSupervisees(req, res, next) {
+  try {
+    const profiles = await SuperviseeProfile.find({
+      supervisorId: req.sharedSupervisor._id,
+    }).sort({ createdAt: -1 });
+    const rows = await Promise.all(
+      profiles.map(async (profile) => {
+        const [refs, summary] = await Promise.all([loadRefs(profile), buildSummary(profile)]);
+        return { ...profile.toSuperviseeJSON(refs), summary };
+      }),
+    );
+    res.json({
+      supervisor: { _id: req.sharedSupervisor._id, name: req.sharedSupervisor.name },
+      supervisees: rows,
+    });
   } catch (err) {
     next(err);
   }
@@ -531,10 +989,27 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
       createdAt: -1,
     });
 
+    // This month's payment and any unpaid months, for the green/red marker.
+    const month = currentMonthKey();
+    const payments = await SupervisionPayment.find({
+      superviseeId: { $in: profiles.map((p) => p._id) },
+      $or: [{ month }, { status: "unpaid" }],
+    })
+      .select("superviseeId month status")
+      .lean();
+
     const rows = await Promise.all(
       profiles.map(async (profile) => {
         const [refs, summary] = await Promise.all([loadRefs(profile), buildSummary(profile)]);
-        return { ...profile.toSupervisorJSON(refs), summary };
+        const mine = payments.filter((p) => String(p.superviseeId) === String(profile._id));
+        return {
+          ...profile.toSupervisorJSON(refs),
+          summary,
+          payment: {
+            thisMonth: mine.find((p) => p.month === month)?.status || null,
+            unpaidMonths: mine.filter((p) => p.status === "unpaid").map((p) => p.month).sort(),
+          },
+        };
       }),
     );
 
@@ -614,12 +1089,22 @@ router.post("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next)
       supervisorNotes: req.body?.supervisorNotes || "",
     });
 
+    // Welcome email with their login details. The account already exists by
+    // now, so a failed send is reported, not fatal: the temporary password
+    // is still shown on the supervisor's screen as the fallback.
+    const inviteEmailSent = await sendSuperviseeInvite({
+      supervisee: { name: user.name || name, email: user.email },
+      supervisor: { name: req.user.name, email: req.user.email },
+      tempPassword,
+    });
+
     res.status(201).json({
       supervisee: profile.toSupervisorJSON({ user, board }),
       // Shown once, at creation. Only the hash is stored, so if she loses it
       // the way back is a reset, not a lookup.
       tempPassword,
       linkedExistingAccount: !tempPassword,
+      inviteEmailSent,
     });
   } catch (err) {
     if (err?.code === 11000) {
@@ -790,6 +1275,83 @@ router.delete(
   ensureSupervisor,
   scopeFromParam,
   deleteAssignment,
+);
+
+// Attachments: the supervisor uploads and removes; anyone who can see the
+// assignment can open its files.
+router.post(
+  "/supervisees/:id/assignments/:assignmentId/attachments",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  receiveAttachments,
+  addAttachments,
+);
+router.get(
+  "/supervisees/:id/assignments/:assignmentId/attachments/:attachmentId",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  downloadAttachment,
+);
+router.delete(
+  "/supervisees/:id/assignments/:assignmentId/attachments/:attachmentId",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  deleteAttachment,
+);
+router.get(
+  "/me/assignments/:assignmentId/attachments/:attachmentId",
+  ensureAuth,
+  ensureSupervisee,
+  scopeFromSession,
+  downloadAttachment,
+);
+
+// Payments: the supervisor records, the supervisee reads their own.
+router.get("/me/payments", ensureAuth, ensureSupervisee, scopeFromSession, listPayments);
+router.get("/supervisees/:id/payments", ensureAuth, ensureSupervisor, scopeFromParam, listPayments);
+router.put(
+  "/supervisees/:id/payments/:month",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  setPayment,
+);
+router.post(
+  "/supervisees/:id/payments/:month/remind",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  sendPaymentReminderNow,
+);
+router.delete(
+  "/supervisees/:id/payments/:month",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  clearPayment,
+);
+
+// Sharing: the supervisor manages who can view...
+router.get("/shares", ensureAuth, ensureSupervisor, listShares);
+router.post("/shares", ensureAuth, ensureSupervisor, createShare);
+router.delete("/shares/:shareId", ensureAuth, ensureSupervisor, deleteShare);
+
+// ...and a viewer reads. GET only, by design; payments are not shared.
+router.get("/shared", ensureAuth, listSharedWithMe);
+router.get("/shared/:supervisorId/supervisees", ensureAuth, ensureViewer, listSharedSupervisees);
+const viewerScope = [ensureAuth, ensureViewer, scopeFromShare];
+router.get("/shared/:supervisorId/supervisees/:id", ...viewerScope, getDashboard);
+router.get("/shared/:supervisorId/supervisees/:id/progress", ...viewerScope, getProgress);
+router.get("/shared/:supervisorId/supervisees/:id/hours", ...viewerScope, listHours);
+router.get("/shared/:supervisorId/supervisees/:id/meetings", ...viewerScope, listMeetings);
+router.get("/shared/:supervisorId/supervisees/:id/assignments", ...viewerScope, listAssignments);
+router.get(
+  "/shared/:supervisorId/supervisees/:id/assignments/:assignmentId/attachments/:attachmentId",
+  ...viewerScope,
+  downloadAttachment,
 );
 
 module.exports = router;

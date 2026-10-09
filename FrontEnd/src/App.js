@@ -32,6 +32,7 @@ import SupervisorDashboard from "Pages/Portal/SupervisorDashboard";
 import SuperviseeDetail from "Pages/Portal/SuperviseeDetail";
 import BoardsAdmin from "Pages/Portal/BoardsAdmin";
 import SupervisionPlans from "Pages/Portal/SupervisionPlans";
+import { SharedRoster, SharedSupervisee } from "Pages/Portal/SharedWithMe";
 
 // Domain-based game imports (Domain 1 moved)
 import { ReceptiveFunctionGame } from "Pages/Games/Domain/1/Game1";
@@ -113,6 +114,11 @@ function App() {
             {/* Public: the plans page sells to visitors as well as renewing
                 supervisors, and handles signed-out buyers itself. */}
             <Route path="/supervision-plans" element={<SupervisionPlans />} />
+            {/* View-only access someone shared with this account. Any signed-
+                in user may open these; the API decides what, if anything,
+                they can see. */}
+            <Route path="/portal/shared" element={<SharedRoster />} />
+            <Route path="/portal/shared/:supervisorId/:id" element={<SharedSupervisee />} />
             <Route
               path="/portal"
               element={

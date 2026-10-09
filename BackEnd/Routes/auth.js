@@ -7,6 +7,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const User = require("../Schema/User");
 const { planStatus } = require("../Services/supervisionPlans");
+const SupervisionShare = require("../Schema/SupervisionShare");
 
 const router = express.Router();
 
@@ -112,6 +113,11 @@ router.post("/logout", (req, res) => {
 });
 router.get("/me", async (req, res) => {
   if (req.isAuthenticated && req.isAuthenticated()) {
+    // How many supervisors have shared their portal with this email; drives
+    // the "Shared with me" menu entry. Never blocks the response on failure.
+    const sharedWithMe = await SupervisionShare.countDocuments({
+      email: String(req.user.email || "").toLowerCase(),
+    }).catch(() => 0);
     const { name, email, pfp, _id, paidItems, role, password, portalRole, mustChangePassword } =
       req.user;
     res.json({
@@ -132,6 +138,7 @@ router.get("/me", async (req, res) => {
         mustChangePassword: !!mustChangePassword,
         // Paid supervisor access; drives the plans page and the renew banner.
         supervisionPlan: planStatus(req.user),
+        sharedWithMe,
       },
     });
   } else {
