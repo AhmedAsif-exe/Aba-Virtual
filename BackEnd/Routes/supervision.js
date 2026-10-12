@@ -1180,6 +1180,43 @@ router.patch(
   },
 );
 
+/**
+ * Remove a supervisee and their whole supervision record: hours, meetings,
+ * assignments (and their files on disk) and payments. Irreversible.
+ *
+ * Their site login is kept on purpose: the same account may be a customer
+ * with purchases, so it only loses the portal (portalRole cleared). Adding
+ * the same email again later links that account to a fresh record.
+ */
+router.delete("/supervisees/:id", ensureAuth, ensureSupervisor, scopeFromParam, async (req, res, next) => {
+  try {
+    const profile = req.profile;
+    const assignments = await SupervisionAssignment.find({ superviseeId: profile._id })
+      .select("attachments.storedName")
+      .lean();
+
+    await Promise.all([
+      WorkHoursEntry.deleteMany({ superviseeId: profile._id }),
+      SupervisionMeeting.deleteMany({ superviseeId: profile._id }),
+      SupervisionAssignment.deleteMany({ superviseeId: profile._id }),
+      SupervisionPayment.deleteMany({ superviseeId: profile._id }),
+    ]);
+    assignments.forEach((a) => (a.attachments || []).forEach((f) => removeStoredFile(f.storedName)));
+
+    await SuperviseeProfile.deleteOne({ _id: profile._id });
+    // Only demote a supervisee login; never touch any other role.
+    await User.updateOne(
+      { _id: profile.userId, portalRole: "supervisee" },
+      { $set: { portalRole: null } },
+    );
+
+    console.log(`[SUPERVISION] supervisor ${req.user.email} deleted supervisee ${profile._id}`);
+    res.json({ message: "Supervisee deleted" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** Issues a fresh temporary password when a supervisee is locked out. */
 router.post(
   "/supervisees/:id/reset-password",

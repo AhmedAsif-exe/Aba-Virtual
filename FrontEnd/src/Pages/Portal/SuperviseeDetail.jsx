@@ -45,6 +45,7 @@ export default function SuperviseeDetail() {
   const [loading, setLoading] = React.useState(true);
   const [editOpen, setEditOpen] = React.useState(false);
   const [tempPassword, setTempPassword] = React.useState(null);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   const loadDashboard = React.useCallback(async () => {
     try {
@@ -158,6 +159,9 @@ export default function SuperviseeDetail() {
             <Button variant="contained" onClick={() => setEditOpen(true)}>
               Edit details
             </Button>
+            <Button variant="outlined" color="error" onClick={() => setDeleteOpen(true)}>
+              Delete
+            </Button>
           </Stack>
         }
       />
@@ -198,6 +202,14 @@ export default function SuperviseeDetail() {
             setEditOpen(false);
             loadDashboard();
           }}
+        />
+      )}
+
+      {deleteOpen && (
+        <DeleteSuperviseeDialog
+          profile={profile}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={() => navigate("/portal/supervisees", { replace: true })}
         />
       )}
 
@@ -353,6 +365,61 @@ function EditSuperviseeDialog({ profile, onClose, onSaved }) {
           </Button>
         </DialogActions>
       </Box>
+    </Dialog>
+  );
+}
+
+/**
+ * Irreversible, so the supervisor types the name to confirm — a stray click
+ * can't wipe someone's hour log. Points to "Completed" as the gentler option
+ * for a supervisee who has simply finished.
+ */
+function DeleteSuperviseeDialog({ profile, onClose, onDeleted }) {
+  const [typed, setTyped] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const matches = typed.trim().toLowerCase() === (profile.name || "").trim().toLowerCase();
+
+  const handleDelete = async () => {
+    setBusy(true);
+    try {
+      await supervisorApi.deleteSupervisee(profile._id);
+      toast.success(`${profile.name} deleted`);
+      onDeleted();
+    } catch (err) {
+      toast.error(apiError(err, "Could not delete supervisee"));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Delete {profile.name}?</DialogTitle>
+      <DialogContent>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          This permanently deletes all of their hours, supervision meetings, assignments
+          (including attached files) and payment records. It can't be undone.
+        </Alert>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Their website login is kept, but they lose access to the portal. If they've only
+          finished supervision, consider <strong>Edit details → Status: Completed</strong>{" "}
+          instead, which keeps their record.
+        </Typography>
+        <TextField
+          label={`Type "${profile.name}" to confirm`}
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoFocus
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button variant="contained" color="error" onClick={handleDelete} disabled={!matches || busy}>
+          {busy ? "Deleting…" : "Delete permanently"}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }

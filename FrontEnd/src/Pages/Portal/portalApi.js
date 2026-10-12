@@ -29,6 +29,7 @@ export const supervisorApi = {
   dashboard: (id) => api.get(`/supervision/supervisees/${id}`),
   progress: (id) => api.get(`/supervision/supervisees/${id}/progress`),
   updateSupervisee: (id, body) => api.patch(`/supervision/supervisees/${id}`, body),
+  deleteSupervisee: (id) => api.delete(`/supervision/supervisees/${id}`),
   resetPassword: (id) => api.post(`/supervision/supervisees/${id}/reset-password`),
 
   listHours: (id) => api.get(`/supervision/supervisees/${id}/hours`),
