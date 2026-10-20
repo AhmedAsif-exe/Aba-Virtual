@@ -23,6 +23,7 @@ import Expertise from "Pages/About/PerksSection";
 import GamesHome from "Pages/Games/GamesHome";
 import PolicyPage from "Pages/Policies/PolicyPage";
 import ScrollToTop from "Utils/ScrollToTop";
+import Seo from "Utils/Seo";
 
 // Supervision portal (supervisees + supervisor admin views).
 import RequirePortalRole from "Pages/Portal/RequirePortalRole";
@@ -57,6 +58,7 @@ function App() {
               path="/"
               element={
                 <>
+                  <Seo />
                   <BannerSection />
                   <Process />
                   <AboutMeSection />
@@ -72,15 +74,56 @@ function App() {
               }
             />
             {/* Add more routes here if needed */}
-            <Route path="/blogs" element={<Blogs />} />
+            <Route
+              path="/blogs"
+              element={
+                <>
+                  <Seo
+                    title="Blog"
+                    description="Articles on Applied Behavior Analysis, autism, parenting and skill-building from the ABA Virtual team."
+                  />
+                  <Blogs />
+                </>
+              }
+            />
             <Route path="/blogs/:id" element={<BlogPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Login />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/games" element={<GamesHome />} />
+            <Route path="/login" element={<><Seo title="Log in" noindex /><Login /></>} />
+            <Route path="/signup" element={<><Seo title="Sign up" noindex /><Login /></>} />
+            <Route path="/account" element={<><Seo title="My account" noindex /><Account /></>} />
+            <Route
+              path="/about"
+              element={
+                <>
+                  <Seo
+                    title="About"
+                    description="Meet the team behind ABA Virtual: Applied Behavior Analysis training, resources and supervision delivered online."
+                  />
+                  <About />
+                </>
+              }
+            />
+            <Route
+              path="/games"
+              element={
+                <>
+                  <Seo
+                    title="Learning games"
+                    description="Interactive ABA learning games that build receptive language, matching and everyday skills."
+                  />
+                  <GamesHome />
+                </>
+              }
+            />
             {/* Domain listing route */}
-            <Route path="/games/domain/:domainId" element={<GamesHome />} />
+            <Route
+              path="/games/domain/:domainId"
+              element={
+                <>
+                  <Seo title="Learning games" />
+                  <GamesHome />
+                </>
+              }
+            />
             {/* Domain 1 specific game routes (canonical) */}
             <Route
               path="/games/domain/1/1"
@@ -96,13 +139,28 @@ function App() {
             <Route path="/games/domain/1/9" element={<Game9 />} />
             <Route path="/games/domain/1/10" element={<Game10 />} />
             {/* Removed legacy top-level /games/:id routes to enforce /games/domain/1/:gameId pattern */}
-            <Route path="/resources" element={<Resources />} />
+            <Route
+              path="/resources"
+              element={
+                <>
+                  <Seo
+                    title="Resources"
+                    description="ABA guide books, workbooks, video trainings and bundles for parents, caretakers and behavior technicians."
+                  />
+                  <Resources />
+                </>
+              }
+            />
             <Route path="/resources/:id" element={<ResourceDetail />} />
-            <Route path="/resources/:id/watch" element={<VideoPlayer />} />
+            <Route path="/resources/:id/watch" element={<><Seo title="Watch" noindex /><VideoPlayer /></>} />
             <Route
               path="/contact"
               element={
                 <div className="py-14">
+                  <Seo
+                    title="Contact"
+                    description="Get in touch with ABA Virtual about trainings, resources or BCBA supervision."
+                  />
                   <Contact />
                 </div>
               }
@@ -110,10 +168,21 @@ function App() {
             {/* Supervision portal. These guards choose which screens to
                 offer; the API enforces the same rules independently, so a
                 hand-typed URL gets a 403, not someone else's data. */}
-            <Route path="/portal/set-password" element={<SetPassword />} />
+            <Route path="/portal/set-password" element={<><Seo title="Set password" noindex /><SetPassword /></>} />
             {/* Public: the plans page sells to visitors as well as renewing
                 supervisors, and handles signed-out buyers itself. */}
-            <Route path="/supervision-plans" element={<SupervisionPlans />} />
+            <Route
+              path="/supervision-plans"
+              element={
+                <>
+                  <Seo
+                    title="Supervision plans"
+                    description="Monthly and yearly BCBA supervision plans for RBTs and supervisees, with tracked hours, meetings and documentation."
+                  />
+                  <SupervisionPlans />
+                </>
+              }
+            />
             {/* View-only access someone shared with this account. Any signed-
                 in user may open these; the API decides what, if anything,
                 they can see. */}
@@ -151,8 +220,8 @@ function App() {
                 </RequirePortalRole>
               }
             />
-            <Route path="/success" element={<SuccessPayment />} />
-            <Route path="/error" element={<ErrorPayment />} />
+            <Route path="/success" element={<><Seo title="Payment successful" noindex /><SuccessPayment /></>} />
+            <Route path="/error" element={<><Seo title="Payment failed" noindex /><ErrorPayment /></>} />
             <Route
               path="/privacy-policy"
               element={<PolicyPage slug="privacy-policy" />}
@@ -168,6 +237,28 @@ function App() {
             <Route
               path="/service-delivery-policy"
               element={<PolicyPage slug="service-delivery-policy" />}
+            />
+            {/* Unknown URLs: a real "not found" page (noindex) instead of an
+                empty layout, so search engines don't index broken links. */}
+            <Route
+              path="*"
+              element={
+                <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6 pt-[120px] pb-16">
+                  <Seo title="Page not found" noindex />
+                  <h1 className="text-[40px] font-semibold text-[#265c7e] mb-3">
+                    Page not found
+                  </h1>
+                  <p className="text-gray-600 mb-6">
+                    The page you're looking for doesn't exist or has moved.
+                  </p>
+                  <a
+                    href="/"
+                    className="bg-[#265c7e] text-white font-semibold px-6 py-3 rounded-lg no-underline"
+                  >
+                    Back to home
+                  </a>
+                </div>
+              }
             />
           </Routes>
         </Layout>

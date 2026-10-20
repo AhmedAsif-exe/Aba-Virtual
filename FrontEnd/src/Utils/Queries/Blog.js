@@ -33,6 +33,7 @@ export const BLOGS = gql`
       _id
       title
       categories
+      description
       mainImage {
         asset {
           altText

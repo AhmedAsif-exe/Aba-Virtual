@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useProjectContext, formatAmount } from "Utils/Context";
 
 export default function ResourceCard({ resource, category, preview = false }) {
   const { user, currency, priceOf } = useProjectContext();
-  const navigate = useNavigate();
   const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
@@ -14,22 +13,21 @@ export default function ResourceCard({ resource, category, preview = false }) {
   }, [user, resource.id]);
 
   // On the home-page preview strip, cards send visitors to the full catalogue;
-  // on the catalogue itself they open the resource's own page.
-  const handleSeeMore = () => {
-    if (preview) navigate(`/resources`);
-    else navigate(`/resources/${resource.id}`);
-  };
+  // on the catalogue itself they open the resource's own page. These are real
+  // links (not onClick navigation) so search engines can discover each page.
+  const target = preview ? `/resources` : `/resources/${resource.id}`;
 
   if (category === "My-Learning" && !isPaid) return null;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden hover:shadow-xl transition-shadow duration-300">
-      <img
-        src={resource?.image?.asset?.url}
-        alt={resource.title}
-        onClick={handleSeeMore}
-        className="aspect-video object-cover border-b border-gray-200 cursor-pointer"
-      />
+      <Link to={target}>
+        <img
+          src={resource?.image?.asset?.url}
+          alt={resource.title}
+          className="aspect-video object-cover border-b border-gray-200 cursor-pointer w-full"
+        />
+      </Link>
 
       <div className="p-4 flex flex-col flex-grow">
         <h2 className="text-lg font-bold text-[#f97544] line-clamp-1">
@@ -47,7 +45,8 @@ export default function ResourceCard({ resource, category, preview = false }) {
         </p>
         {/* Buttons */}
         <Button
-          onClick={handleSeeMore}
+          component={Link}
+          to={target}
           fullWidth
           sx={{
             mt: 1.5,

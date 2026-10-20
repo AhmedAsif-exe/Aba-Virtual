@@ -6,6 +6,7 @@ import { Container, Typography, Box, Chip, Divider } from "@mui/material";
 import Comments from "Utils/Comments";
 import { useQuery } from "@apollo/client";
 import { useParams } from "react-router-dom";
+import Seo from "Utils/Seo";
 
 export default function BlogPage() {
   const { id } = useParams();
@@ -13,6 +14,13 @@ export default function BlogPage() {
   console.log(data?.Blog?.section);
   return (
     <Container maxWidth={"100%"} sx={{ py: 4, p: 0 }}>
+      {!loading && data?.Blog && (
+        <Seo
+          title={data.Blog.title}
+          description={data.Blog.description}
+          image={data.Blog.mainImage?.asset?.url}
+        />
+      )}
       {!loading && (
         <Box key={data.Blog._id} my={2} width={"100%"}>
           {data.Blog.mainImage?.asset && (

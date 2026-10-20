@@ -27,6 +27,7 @@ import {
 import { getResourcePreview } from "Utils/resourcePreviews";
 import BundleLanding from "./BundleLanding";
 import TrainingBundleLanding from "./TrainingBundleLanding";
+import Seo from "Utils/Seo";
 
 function AuthorIntro({ authors }) {
   const author = authors?.[0];
@@ -146,6 +147,13 @@ export default function ResourceDetail() {
   });
   const resource = staticResource || data?.Resource;
   const preview = getResourcePreview(id);
+  const seo = resource && (
+    <Seo
+      title={resource.title}
+      description={resource.description}
+      image={resource.image?.asset?.url}
+    />
+  );
 
   const inCart = cart.some((item) => item.id === id);
 
@@ -216,24 +224,30 @@ export default function ResourceDetail() {
 
   if (resource.id === FFC_BUNDLE_ID) {
     return (
-      <BundleLanding
-        resource={resource}
-        isPaid={isPaid}
-        inCart={inCart}
-        onBuy={handleAddToCart}
-        onOpen={handleOpen}
-      />
+      <>
+        {seo}
+        <BundleLanding
+          resource={resource}
+          isPaid={isPaid}
+          inCart={inCart}
+          onBuy={handleAddToCart}
+          onOpen={handleOpen}
+        />
+      </>
     );
   }
 
   if (resource.id === TRAINING_BUNDLE_ID) {
     return (
-      <TrainingBundleLanding
-        resource={resource}
-        isPaid={isPaid}
-        inCart={inCart}
-        onBuy={handleAddToCart}
-      />
+      <>
+        {seo}
+        <TrainingBundleLanding
+          resource={resource}
+          isPaid={isPaid}
+          inCart={inCart}
+          onBuy={handleAddToCart}
+        />
+      </>
     );
   }
 
@@ -243,6 +257,7 @@ export default function ResourceDetail() {
       component="main"
       sx={{ pt: { xs: "110px", sm: "130px" }, pb: 10 }}
     >
+      {seo}
       {/* Back link */}
       <button
         onClick={() => navigate("/resources")}

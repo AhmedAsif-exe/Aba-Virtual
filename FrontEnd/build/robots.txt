@@ -1,3 +1,10 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Disallow: /portal
+Disallow: /account
+Disallow: /login
+Disallow: /signup
+Disallow: /success
+Disallow: /error
+Disallow: /resources/*/watch
+
+Sitemap: https://abavirtual.net/sitemap.xml

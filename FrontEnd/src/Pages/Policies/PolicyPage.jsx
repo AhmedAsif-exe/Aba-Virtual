@@ -17,6 +17,7 @@ import {
   CheckCircleOutline,
 } from "@mui/icons-material";
 import { policies } from "./policyData";
+import Seo from "Utils/Seo";
 
 const heroIcons = {
   "privacy-policy": ShieldOutlined,
@@ -153,6 +154,7 @@ const PolicyPage = ({ slug }) => {
 
   return (
     <div className="min-h-screen bg-[#f4f6f8]">
+      <Seo title={policy.title} description={policy.intro} />
       <section className="bg-[#042539] text-white text-center px-[25px] l:px-[100px] pb-10 l:pb-14 pt-[100px] t:pt-[120px]">
         <div className="max-w-3xl mx-auto">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#265c7e]/40 mb-4">
