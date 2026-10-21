@@ -19,7 +19,9 @@ import Process from "Pages/Home/Process/Process";
 import BlogPreview from "Pages/Home/BlogPreview";
 import Contact from "Pages/Contact/Contact";
 import ResourcesPreview from "Pages/Home/ResourcesPreview";
-import Expertise from "Pages/About/PerksSection";
+import SupervisionShowcase from "Pages/Home/SupervisionShowcase";
+import OfferingsSection from "Pages/Home/OfferingsSection";
+import AccountBenefits from "Pages/Home/AccountBenefits";
 import GamesHome from "Pages/Games/GamesHome";
 import PolicyPage from "Pages/Policies/PolicyPage";
 import ScrollToTop from "Utils/ScrollToTop";
@@ -60,14 +62,16 @@ function App() {
                 <>
                   <Seo />
                   <BannerSection />
-                  <Process />
+                  {/* The supervision portal sits right under the hero: it's
+                      the offering the business most wants people to find. */}
+                  <SupervisionShowcase />
+                  <OfferingsSection />
+                  <ResourcesPreview />
+                  <AccountBenefits />
                   <AboutMeSection />
                   <TestimonialSection />
+                  <Process />
                   <BlogPreview />
-                  <div className="t:px-0 px-[25px]">
-                    <Expertise />
-                  </div>
-                  <ResourcesPreview />
                   <Contact />
                   {/* <GamesHome /> */}
                 </>
@@ -159,7 +163,7 @@ function App() {
                 <div className="py-14">
                   <Seo
                     title="Contact"
-                    description="Get in touch with ABA Virtual about trainings, resources or BCBA supervision."
+                    description="Get in touch with ABA Virtual about parent training, trainings, resources or the supervision portal."
                   />
                   <Contact />
                 </div>
@@ -176,8 +180,8 @@ function App() {
               element={
                 <>
                   <Seo
-                    title="Supervision plans"
-                    description="Monthly and yearly BCBA supervision plans for RBTs and supervisees, with tracked hours, meetings and documentation."
+                    title="Supervision portal & pricing"
+                    description="The ABA Virtual supervision portal: supervisees log fieldwork hours, supervisors track meetings, progress and assignments. Monthly or yearly plans for supervisors; supervisees join free."
                   />
                   <SupervisionPlans />
                 </>

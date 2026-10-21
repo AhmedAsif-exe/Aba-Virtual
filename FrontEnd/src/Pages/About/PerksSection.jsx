@@ -43,7 +43,7 @@ const PerksSection = () => {
       id="expertise"
     >
       <h2
-        className="l:text-[70px] text-[50px] font-[raleway] italic-not text-[#f97544] mb-[30px] text-center m-0"
+        className="text-[30px] t:text-[40px] font-extrabold text-navy text-center m-0 mb-10"
         id="expertise-heading"
       >
         Expertise

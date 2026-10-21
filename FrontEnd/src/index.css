@@ -1,8 +1,9 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Helvetica Neue", sans-serif;
+  color: #1f2937;
+  background: #ffffff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -20,4 +21,91 @@ code {
 #scroll-container {
   transform: translateY(0) !important;
   /* top: 0 !important; */
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: "Raleway", "Inter", sans-serif;
+    letter-spacing: -0.01em;
+  }
+  /* A visible ring for keyboard users only; mouse clicks stay clean. */
+  :focus-visible {
+    outline: 3px solid #45b4b3;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Shared building blocks for the public pages. */
+  .section {
+    @apply max-w-[1200px] mx-auto px-5 t:px-8;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.14em];
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold no-underline transition duration-200 ease-out min-h-[44px];
+  }
+  .btn-primary {
+    @apply btn bg-coral text-white shadow-[0_8px_20px_-6px_rgba(249,117,68,0.6)] hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(249,117,68,0.7)];
+  }
+  .btn-dark {
+    @apply btn bg-brand text-white shadow-soft hover:-translate-y-0.5 hover:bg-[#1e4e6a] hover:shadow-lift;
+  }
+  .btn-ghost {
+    @apply btn border border-brand/25 bg-white/70 text-brand backdrop-blur hover:-translate-y-0.5 hover:border-brand/50 hover:bg-white;
+  }
+  .btn-violet {
+    @apply btn bg-gradient-to-r from-violet-500 to-violet-700 text-white shadow-glow hover:-translate-y-0.5 hover:brightness-110;
+  }
+  .btn-on-dark {
+    @apply btn border border-white/25 bg-white/10 text-white backdrop-blur hover:-translate-y-0.5 hover:bg-white/20;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-soft transition duration-300 ease-out;
+  }
+  .card-hover {
+    @apply hover:-translate-y-1 hover:shadow-lift hover:border-slate-300/80;
+  }
+  /* Soft brand-coloured light behind hero-style sections. */
+  .ambient {
+    background:
+      radial-gradient(60% 50% at 85% 10%, rgba(69, 180, 179, 0.16), transparent 70%),
+      radial-gradient(50% 45% at 5% 30%, rgba(249, 117, 68, 0.10), transparent 70%),
+      linear-gradient(180deg, #f4f9fb 0%, #ffffff 100%);
+  }
+  .fade-up {
+    animation: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Visitors who ask for less motion get none of the decorative movement. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

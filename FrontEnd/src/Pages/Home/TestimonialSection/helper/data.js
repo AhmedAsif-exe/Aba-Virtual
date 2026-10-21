@@ -12,7 +12,7 @@ const testimonials = [
     // bgcolor: "#F54748",
   },
   {
-    name: "KSA",
+    name: "Saudi Arabia",
     message:
       "I took ABA therapy (online) from Faiza for my son. It has been a great experience as my son makes remarkable progress in terms of behavior as well as academics. She provided all the learning material required for the session based on my child’s need including personalized IEP. Apart from that she also empowers parents.",
     flag: ksa,
@@ -26,7 +26,7 @@ const testimonials = [
     // bgcolor: "#42A5F5",
   },
   {
-    name: "KSA",
+    name: "Saudi Arabia",
     message:
       "What sets Faiza apart is her holistic approach—she doesn’t just focus on the child, but supports the entire family. Over the years, we’ve seen remarkable improvements in our daughter’s communication, behavior, and confidence.",
     flag: ksa,
@@ -42,7 +42,7 @@ const testimonials = [
   {
     name: "Pakistan",
     message:
-      "After being attached with you for some time I can confidently say that aba is not abusive. More than grateful to have you as my son’s star therapist.",
+      "After being attached with you for some time I can confidently say that ABA is not abusive. More than grateful to have you as my son’s star therapist.",
     flag: pak,
     // bgcolor: "#66BB6A",
   },

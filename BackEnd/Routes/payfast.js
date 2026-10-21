@@ -48,7 +48,7 @@ router.post("/initiate", ensureAuth, async (req, res) => {
     const ids = Array.isArray(itemIds) ? itemIds : [];
     if (!ids.length) return res.status(400).json({ error: "Cart is empty" });
 
-    const priced = await resolveCart(ids);
+    const priced = await resolveCart(ids, { pkrPricing: displayCurrency === "PKR" });
 
     // A supervisee account can't also be a supervisor, so it can't buy a
     // supervisor plan — they'd pay and get nothing. Checked before any order

@@ -21,7 +21,11 @@ cron.schedule("0 0 * * *", async () => {
 });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const { getEurRates, FIXED_PKR_PRICES } = require("../Services/pricing");
+const {
+  getEurRates,
+  FIXED_PKR_PRICES,
+  FIXED_EUR_PRICES,
+} = require("../Services/pricing");
 
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
@@ -30,69 +34,12 @@ function ensureAuth(req, res, next) {
   res.status(401).json({ message: "Not authenticated" });
 }
 
-// Europe ISO codes → display EUR (ponytail: flat set, not EU-only)
-const EUROPE = new Set([
-  "AL",
-  "AD",
-  "AT",
-  "BY",
-  "BE",
-  "BA",
-  "BG",
-  "HR",
-  "CY",
-  "CZ",
-  "DK",
-  "EE",
-  "FI",
-  "FR",
-  "DE",
-  "GR",
-  "HU",
-  "IS",
-  "IE",
-  "IT",
-  "XK",
-  "LV",
-  "LI",
-  "LT",
-  "LU",
-  "MT",
-  "MD",
-  "MC",
-  "ME",
-  "NL",
-  "MK",
-  "NO",
-  "PL",
-  "PT",
-  "RO",
-  "RU",
-  "SM",
-  "RS",
-  "SK",
-  "SI",
-  "ES",
-  "SE",
-  "CH",
-  "UA",
-  "GB",
-  "VA",
-  "AX",
-  "FO",
-  "GG",
-  "GI",
-  "IM",
-  "JE",
-  "SJ",
-]);
-
 function classifyCurrency(countryCode) {
   if (!countryCode) return "EUR";
   const cc = countryCode.toUpperCase();
-  if (cc === "PK") return "PKR";
-  if (EUROPE.has(cc)) return "EUR";
-  return "USD";
+  // Most clients are in Europe or the Middle East, so everyone outside
+  // Pakistan sees euros.
+  return cc === "PK" ? "PKR" : "EUR";
 }
 
 function isLoopback(ip) {
@@ -280,8 +227,15 @@ router.get("/currency", async (req, res) => {
     const pkrRate = Number(rates.PKR);
     if (!(rate > 0) || !(pkrRate > 0)) throw new Error(`No rate for ${currency}`);
 
-    // pkrRate + fixedPkr let the browser show fixed-PKR items in any currency.
-    res.json({ currency, rate, pkrRate, fixedPkr: FIXED_PKR_PRICES, country });
+    // The browser shows Pakistan fixedPkr and everyone else fixedEur.
+    res.json({
+      currency,
+      rate,
+      pkrRate,
+      fixedPkr: FIXED_PKR_PRICES,
+      fixedEur: FIXED_EUR_PRICES,
+      country,
+    });
   } catch (err) {
     console.error("Currency resolve error:", err);
     res.json({ currency: "EUR", rate: 1, country: null });

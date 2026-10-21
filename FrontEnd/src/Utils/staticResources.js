@@ -1,17 +1,17 @@
 // Resources that aren't Sanity documents — same idea as the Games catalogue,
 // which is mirrored in the backend (Services/pricing.js) instead of living in
-// the CMS. Real prices come from the backend's fixed PKR list; `price` here
-// (EUR) is only the fallback, like a Sanity resource's `price`.
+// the CMS. Real prices come from the backend's fixed EUR/PKR lists; `price`
+// here (EUR) is only the fallback, like a Sanity resource's `price`.
 import ffcBundleImg from "Assets/Images/ffc-bundle.png";
 import trainingBundleImg from "Assets/Images/training-bundle.png";
 
 export const FFC_BUNDLE_ID = "ffc-bundle";
 export const TRAINING_BUNDLE_ID = "training-bundle";
 
-const GUIDE_BOOK_EUR = 8.5;
-const WORKBOOK_EUR = 8.5;
-const GAME_EUR = 3.5;
-const TRAINING_EUR = 9.5;
+const GUIDE_BOOK_EUR = 8;
+const WORKBOOK_EUR = 8;
+const GAME_EUR = 4;
+const TRAINING_EUR = 6;
 
 // The paid items a bundle replaces, priced the same way as the items
 // themselves, so "compare at" and "save" always match the real catalogue.
@@ -46,7 +46,7 @@ export const STATIC_RESOURCES = [
     title: "FFC Bundle",
     category: "Downloadable",
     type: "PDF",
-    price: 56.0,
+    price: 55,
     compareAtItems: FFC_COMPARE_AT_ITEMS,
     url: "FFC-Bundle.zip",
     description:
@@ -84,7 +84,7 @@ export const STATIC_RESOURCES = [
     title: "Training Bundle",
     category: "Training",
     type: "Video",
-    price: 22.8,
+    price: 24,
     compareAtItems: TRAINING_COMPARE_AT_ITEMS,
     description:
       "All four measurement trainings in one bundle — Frequency, Duration & Latency, Rate, and Whole Interval — for less than buying them one by one.",

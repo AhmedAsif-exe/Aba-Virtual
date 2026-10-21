@@ -34,7 +34,8 @@ export const ContactInfoSection = () => {
     area: "Media Town",
     city: "Islamabad",
     zipCode: "44000",
-    contactPhone: "03180580948",
+    // Pakistani mobile 0318 0580948, in international format.
+    contactPhone: "+92 318 0580948",
   };
 
   const subjectOptions = [
@@ -183,7 +184,7 @@ export const ContactInfoSection = () => {
                 <Phone sx={{ color: "white" }} />
               </ListItemAvatar>
               <ListItemText className="text-white">
-                <a href={`tel:${contactInfo.contactPhone}`}>
+                <a href={`tel:${contactInfo.contactPhone.replace(/\s/g, "")}`}>
                   {contactInfo.contactPhone}
                 </a>
               </ListItemText>

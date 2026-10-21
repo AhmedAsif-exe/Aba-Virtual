@@ -1,7 +1,6 @@
 import { CommentSection } from "react-comments-section";
 import "react-comments-section/dist/index.css";
 import { useState, useEffect } from "react";
-import { toast } from "react-toastify";
 import {
   fetchComments,
   submitComment,
@@ -9,9 +8,12 @@ import {
   editComment,
   deleteComment,
 } from "Utils/Queries/Comments";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useProjectContext } from "Utils/Context";
 const Comments = ({ blogId }) => {
   const { user, loggedIn, loading } = useProjectContext();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([]);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ const Comments = ({ blogId }) => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [blogId]);
 
   return (
     <>
@@ -43,8 +45,8 @@ const Comments = ({ blogId }) => {
               : null
           }
           logIn={{
-            onLogin: () => toast.info("on login button"),
-            signUpLink: "/login",
+            onLogin: () => navigate("/login", { state: { from: location.pathname } }),
+            signUpLink: "/signup",
           }}
           commentData={data}
           onSubmitAction={async ({ userId, text }) =>

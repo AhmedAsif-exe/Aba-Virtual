@@ -39,24 +39,23 @@ const getInitialCart = () => {
 
 const SYMBOLS = { EUR: "€", USD: "$", PKR: "Rs " };
 
-const round1 = (n) => Math.round(n * 10) / 10;
+// EUR/USD amounts are display-only (PayFast always charges PKR), kept to the
+// cent so a converted price isn't shown less precisely than it is.
+const round2 = (n) => Math.round(n * 100) / 100;
 
 // EUR-priced items become whole rupees rounded to the nearest 50 — the same
 // rule the backend charges with (BackEnd/Services/pricing.js).
 const pkrFromEur = (eur, eurToPkr) => Math.round((eur * eurToPkr) / 50) * 50;
 
 /**
- * An item's price in `currency`. Items listed in `fixedPkr` (from the
- * backend) are priced in PKR and converted for EUR/USD viewers; everything
- * else is priced in EUR via `item.price`. `rate` is EUR->currency and
- * `pkrRate` is EUR->PKR.
+ * An item's price in `currency`. The backend's `fixedEur` (whole euros)
+ * overrides `item.price`; PKR viewers get `fixedPkr` where listed, otherwise
+ * the euro price converted. `rate` is EUR->currency.
  */
-export function itemPrice(item, { currency, rate, pkrRate, fixedPkr }) {
-  const pkr = fixedPkr?.[item.id];
-  const eur = Number(item.price) || 0;
-  if (currency === "PKR") return pkr ?? pkrFromEur(eur, rate);
-  const eurValue = pkr != null && pkrRate ? pkr / pkrRate : eur;
-  return round1(eurValue * (currency === "EUR" ? 1 : rate));
+export function itemPrice(item, { currency, rate, fixedPkr, fixedEur }) {
+  const eur = fixedEur?.[item.id] ?? (Number(item.price) || 0);
+  if (currency === "PKR") return fixedPkr?.[item.id] ?? pkrFromEur(eur, rate);
+  return round2(eur * (currency === "EUR" ? 1 : rate));
 }
 
 /** Format an amount that is already in `currency` (null = not loaded yet). */
@@ -65,7 +64,13 @@ export function formatAmount(amount, currency = "EUR") {
   const symbol = SYMBOLS[currency] || `${currency} `;
   const n = Number(amount) || 0;
   if (currency === "PKR") return `${symbol}${Math.round(n).toLocaleString("en-US")}`;
-  return `${symbol}${round1(n).toFixed(1)}`;
+  // Standard currency style: €30, €54.73 — never €30.0 or €54.7.
+  const value = round2(n);
+  const whole = Number.isInteger(value);
+  return `${symbol}${value.toLocaleString("en-US", {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function ContextProvider({ children }) {
@@ -77,6 +82,7 @@ export function ContextProvider({ children }) {
   const [rate, setRate] = useState(1);
   const [pkrRate, setPkrRate] = useState(null);
   const [fixedPkr, setFixedPkr] = useState({});
+  const [fixedEur, setFixedEur] = useState({});
   const [pricesReady, setPricesReady] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -131,6 +137,7 @@ export function ContextProvider({ children }) {
         setRate(ok ? Number(data.rate) : 1);
         setPkrRate(ok ? Number(data.pkrRate) : null);
         setFixedPkr(ok ? data.fixedPkr || {} : {});
+        setFixedEur(ok ? data.fixedEur || {} : {});
       } catch {
         if (!isMounted) return;
         setCurrency("EUR");
@@ -150,12 +157,21 @@ export function ContextProvider({ children }) {
     return res;
   };
 
-  const fx = { currency, rate, pkrRate, fixedPkr };
+  const fx = { currency, rate, fixedPkr, fixedEur };
   // null until the visitor's currency is known, so no stale price flashes.
   const priceOf = (item) => (pricesReady ? itemPrice(item, fx) : null);
-  // PayFast always bills in PKR, whatever currency is on screen.
+  // PayFast always bills in PKR, whatever currency is on screen. Only
+  // Pakistani visitors get the fixed PKR list; everyone else pays the euro
+  // price converted (same as BackEnd/Services/pricing.js).
   const pkrPriceOf = (item) =>
-    pkrRate ? itemPrice(item, { ...fx, currency: "PKR", rate: pkrRate }) : null;
+    pkrRate
+      ? itemPrice(item, {
+          ...fx,
+          currency: "PKR",
+          rate: pkrRate,
+          fixedPkr: currency === "PKR" ? fixedPkr : {},
+        })
+      : null;
 
   return (
     <ProjectContext.Provider

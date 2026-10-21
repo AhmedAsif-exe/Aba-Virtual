@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 const SITE_URL = "https://abavirtual.net";
 const SITE_NAME = "ABA Virtual";
 const DEFAULT_DESCRIPTION =
-  "Online ABA training, guide books, workbooks and learning games for parents, caretakers and behavior technicians, plus BCBA supervision for RBTs.";
+  "Remote ABA parent training, trainings for behavior technicians, FFC guide books and learning games, plus a supervision portal for tracking fieldwork hours, meetings and progress.";
 const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
 
 function setMeta(attr, key, content) {

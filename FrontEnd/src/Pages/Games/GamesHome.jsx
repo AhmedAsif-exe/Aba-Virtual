@@ -108,8 +108,8 @@ const lockedLevels = [3, 4, 5, 6, 7, 8, 9, 10];
 
 const GAMES_BUNDLE_ID = "domain1-bundle-levels-3-10";
 const GAMES_BUNDLE_TITLE = "Domain 1 Bundle (Levels 3-10)";
-const GAMES_BUNDLE_PRICE = 25.0;
-const INDIVIDUAL_GAME_PRICE = 3.5;
+const GAMES_BUNDLE_PRICE = 25;
+const INDIVIDUAL_GAME_PRICE = 4;
 const gameItem = (n) => ({
   id: `domain1-game-${n}`,
   price: INDIVIDUAL_GAME_PRICE,

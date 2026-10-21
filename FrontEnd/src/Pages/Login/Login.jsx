@@ -15,6 +15,18 @@ import { styled } from "@mui/material/styles";
 import { Google } from "@mui/icons-material";
 import api from "../../axiosInstance";
 import { toast } from "react-toastify";
+import Alert from "@mui/material/Alert";
+import { BenefitList } from "Pages/Home/AccountBenefits";
+
+// Where a visitor was heading when they were asked to log in, in words.
+const destinationLabel = (from) => {
+  if (!from) return null;
+  if (from === "/supervision-plans") return "choose a supervision portal plan";
+  if (from.startsWith("/portal")) return "open the supervision portal";
+  if (from === "/account") return "open your account";
+  if (from.startsWith("/resources")) return "continue with that resource";
+  return "continue";
+};
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
@@ -143,16 +155,23 @@ export default function Login(props) {
     window.location.href = `${process.env.REACT_APP_BACKEND_URI}auth/google`;
   };
 
-  return (
-    <SignInContainer direction="column" justifyContent="space-between">
+  const from = location.state?.from;
+  const goingTo = destinationLabel(from);
+
+  const card = (
       <Card variant="outlined">
         <Typography
           component="h1"
           variant="h4"
-          sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
+          sx={{ width: "100%", fontSize: "clamp(1.8rem, 8vw, 2.1rem)" }}
         >
-          {isLogin ? "Sign in" : "Sign up"}
+          {isLogin ? "Log in" : "Create your account"}
         </Typography>
+        {goingTo && (
+          <Alert severity="info" sx={{ textAlign: "left" }}>
+            Please {isLogin ? "log in" : "create an account or log in"} to {goingTo}.
+          </Alert>
+        )}
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -227,19 +246,21 @@ export default function Login(props) {
               Forgot your password?
             </Link>
           )} */}
-          <Button type="submit" fullWidth variant="contained">
-            {isLogin ? "Sign in" : "Sign up"}
+          <Button type="submit" fullWidth variant="contained" size="large">
+            {isLogin ? "Log in" : "Create account"}
           </Button>
         </Box>
         <Divider>or</Divider>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Button
             fullWidth
+            variant="outlined"
+            size="large"
             onClick={handleGoogleLogin}
             startIcon={<Google />}
-            sx={{ backgroundColor: "red", color: "white" }}
+            sx={{ borderColor: "#d0d7de", color: "#1f2937" }}
           >
-            Sign in with Google
+            Continue with Google
           </Button>
 
           <Typography sx={{ textAlign: "center" }}>
@@ -248,13 +269,33 @@ export default function Login(props) {
               component="button"
               variant="body2"
               sx={{ alignSelf: "center", ml: 1 }}
-              onClick={navigate.bind(this, isLogin ? "/signup" : "/login")}
+              // Keep where they were heading when switching forms.
+              onClick={() => navigate(isLogin ? "/signup" : "/login", { state: location.state })}
             >
-              {isLogin ? "Sign up" : "Log In"}
+              {isLogin ? "Sign up" : "Log in"}
             </Link>
           </Typography>
         </Box>
       </Card>
+  );
+
+  return (
+    <SignInContainer direction="column" justifyContent="center">
+      {isLogin ? (
+        card
+      ) : (
+        <div className="mx-auto grid w-full max-w-[980px] items-stretch gap-6 t:grid-cols-[1fr_450px]">
+          <aside className="relative overflow-hidden rounded-2xl bg-navy p-8 text-white shadow-lift">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-teal/30 blur-3xl" />
+            <div className="relative text-left">
+              <p className="eyebrow text-teal m-0">Free account</p>
+              <h2 className="mt-3 mb-6 text-[26px] font-extrabold">What you get when you join</h2>
+              <BenefitList dark />
+            </div>
+          </aside>
+          {card}
+        </div>
+      )}
     </SignInContainer>
   );
 }

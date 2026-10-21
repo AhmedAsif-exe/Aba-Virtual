@@ -87,7 +87,7 @@ export default function OurProcessSection() {
   return (
     <div className="ml:px-[50px] pt-[20px] my-0 flex flex-col rounded-tl-[35%]">
       <h2
-        className="l:text-[70px] text-[50px] font-[raleway] italic-not text-[#f97544] text-center m-0 mb-[30px]"
+        className="text-[30px] t:text-[40px] font-extrabold text-navy text-center m-0 mb-10"
         id="our-process-header"
       >
         {" "}

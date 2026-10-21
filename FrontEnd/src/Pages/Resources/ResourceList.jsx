@@ -8,9 +8,8 @@ export default function ResourceList({ resources, category, type }) {
         r.category === category) &&
       (type === "All" || type === "My-Learning" || r.type === type)
   );
-  console.log(resources);
   return (
-    <div className="grid grid-cols-1 ml:grid-cols-2 t:grid-cols-3 gap-4 items-start">
+    <div className="grid grid-cols-1 ml:grid-cols-2 t:grid-cols-3 gap-6">
       {filtered.map((res) => (
         <ResourceCard key={res.id} resource={res} category={category} />
       ))}

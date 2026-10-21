@@ -6,7 +6,7 @@ const faqData = [
     title: "Where can we contact you?",
     content: (
       <p className="text-md text-start text-[#265c7e]">
-        I’m most responsive on my email:{" "}
+        We’re most responsive on our email:{" "}
         <strong>
           <i>contact@abavirtual.net </i>
         </strong>
@@ -26,9 +26,9 @@ const faqData = [
     title: "Where do you work from?",
     content: (
       <p className="text-md text-start text-[#265c7e]">
-        Because I travel a lot, my work system is designed virtually and so all
-        sessions are conducted on their respective timings regardless of my
-        presence in a single country.
+        Our work system is designed to be fully virtual, so all sessions are
+        conducted at their scheduled times wherever we are, rather than from a
+        single country.
       </p>
     ),
   },
@@ -37,18 +37,18 @@ const faqData = [
     title: "Can you supervise RBTs?",
     content: (
       <p className="text-md text-start text-[#265c7e]">
-        No. I can only provide supervision to ABATs following ethics set by the
+        No. We can only provide supervision to ABATs following ethics set by the
         credentialing boards.
       </p>
     ),
   },
   {
     id: "faq-example",
-    title: "Do you require masters in ABA to sit for QASP exam?",
+    title: "Do I need a master’s in ABA to sit the QASP exam?",
     content: (
       <p className="text-md text-start text-[#265c7e]">
-        You do not require masters in any filed to sit for the exam of QASP. A
-        minimum of a bachelor’s degree is the requirement. Read on{" "}
+        You do not need a master’s degree in any field to sit the QASP exam. The
+        minimum requirement is a bachelor’s degree. Read on{" "}
         <a
           href=" https://qababoard.com/pages/qualified-autism-services-practitioner-
         supervisor/"
@@ -56,7 +56,7 @@ const faqData = [
         >
           QABA’s website
         </a>{" "}
-        for more information on requirement criteria
+        for more information on the requirements
       </p>
     ),
   },
@@ -67,7 +67,7 @@ const faqData = [
       <p className="text-md text-start text-[#265c7e]">
         {" "}
         QASP is a mid-tier credential offered by the Qualified Applied Behavior
-        Analysis Credentialing Board (QABA). This credetnial can assess,
+        Analysis Credentialing Board (QABA). This credential can assess,
         supervise and create intervention plans but, it does require supervision
         from higher level credentials (e.g., QBA, BCBA) and also are authorized
         to supervise lower level credential i.e., ABAT. Read on{" "}
@@ -77,7 +77,7 @@ const faqData = [
         >
           QABA’s website
         </a>{" "}
-        for more information on the scope of a QASP-S;
+        for more information on the scope of a QASP-S.
       </p>
     ),
   },
@@ -108,7 +108,7 @@ const Faq = () => {
     <div className="mt-[50px]">
       <div className=" max-w-[1200px] mx-auto px-6 py-8 font-sans">
         <h2
-          className="l:text-[70px] text-[50px] font-[raleway] italic-not text-[#265c7e] text-center m-0 mb-[30px]"
+          className="text-[30px] t:text-[40px] font-extrabold text-navy text-center m-0 mb-10"
           id="our-process-header"
         >
           FAQ

@@ -1,57 +1,29 @@
-import { Container, Box } from "@mui/material";
+// Shared page header (Resources, Blog, Games): the page photo under a navy
+// gradient so the title is always readable, then the page content.
 const PageTemplate = ({ children, title, subtitle, src }) => {
   return (
-    <Container
-      maxWidth="100%"
-      component="main"
-      sx={{ display: "flex", flexDirection: "column", my: 2 }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-          maxWidth: "100%",
-          Height: "100vh",
-          marginTop: { xs: "75px", sm: "0px" },
-        }}
-      >
-        <Box
-          sx={{
-            position: "relative",
-            backgroundImage: `url(${src})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            padding: { xs: "40px 20px", sm: "100px 40px" },
-            borderRadius: "10px",
-            overflow: "hidden",
-
-            maxHeight: { xs: "300px", sm: "none" },
-          }}
+    <main className="pt-[100px] t:pt-[120px] pb-16">
+      <div className="section">
+        <header
+          className="relative overflow-hidden rounded-3xl bg-navy bg-cover bg-center px-6 py-14 t:px-12 t:py-24 text-center shadow-lift"
+          style={{ backgroundImage: `url(${src})` }}
         >
-          {/* Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.20)", // correct alpha format
-              zIndex: 1,
-            }}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-br from-[#042539]/90 via-[#042539]/70 to-[#265c7e]/50"
           />
-
-          {/* Content on top */}
-          <Box sx={{ position: "relative", zIndex: 2, textAlign: "center" }}>
-            <h1 className="ml:text-[70px] text-[30px] text-[#f97544] font-[raleway] ml:mb-4">
-              {title}
-            </h1>
-            <p className="text-white ml:text-[20px] text-[10px]">{subtitle}</p>
-          </Box>
-        </Box>
-
-        {children}
-      </Box>
-    </Container>
+          <div className="relative">
+            <h1 className="m-0 text-[34px] t:text-[56px] font-extrabold text-white">{title}</h1>
+            {subtitle && (
+              <p className="mx-auto mt-4 mb-0 max-w-[640px] text-[16px] t:text-[19px] text-white/80">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        </header>
+        <div className="mt-10">{children}</div>
+      </div>
+    </main>
   );
 };
 

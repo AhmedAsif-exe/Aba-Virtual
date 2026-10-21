@@ -52,7 +52,7 @@ export default function WhatIDoSection({
   return (
     <div id={`me-${idx}`} className="mt-10 mb-20">
       <h2
-        className={`l:text-[35px] t:text-[30px] text-[25px] font-[Raleway] text-[#f97544] mb-4 ${
+        className={`l:text-[38px] t:text-[32px] text-[26px] font-display font-extrabold text-navy mb-6 ${
           reverse ? "text-right" : "text-left"
         }`}
         id={`me-${idx}-heading`}
@@ -68,7 +68,7 @@ export default function WhatIDoSection({
           id={`me-${idx}-img`}
           className={`l:min-w-[50%] ml:min-w-[70%] min-w-[100%] ${
             reverse ? "self-end" : "self-start"
-          } ml:min-h-[500px] min-h-[300px] rounded-[5px] bg-cover bg-no-repeat`}
+          } ml:min-h-[500px] min-h-[300px] rounded-3xl shadow-lift bg-cover bg-no-repeat`}
           style={{
             backgroundImage: `url(${src})`,
             backgroundPosition: !reverse ? "top" : "center",
@@ -78,10 +78,10 @@ export default function WhatIDoSection({
           id={`me-${idx}-content`}
           className="flex flex-col l:mt-0 mt-4 l:max-w-[45%]"
         >
-          <h3 className="text-[#28a5a8] text-[18px]  text-start mt-2 t:mb-6">
+          <h3 className="eyebrow text-teal text-start mt-2 t:mb-5">
             {remark}
           </h3>
-          <p className="text-[16px] text-justify mb-2">{content}</p>
+          <p className="text-[17px] leading-relaxed text-slate-700 text-left mb-2">{content}</p>
         </div>
       </div>
     </div>

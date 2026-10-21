@@ -21,8 +21,8 @@ const sanity = createClient({
 // (Pages/Games/GamesHome.jsx). Mirrored here so the server can price them
 // independently. Keep both sides in step when prices change.
 const GAMES_BUNDLE_ID = "domain1-bundle-levels-3-10";
-const GAMES_BUNDLE_PRICE_EUR = 25.0;
-const INDIVIDUAL_GAME_PRICE_EUR = 3.5;
+const GAMES_BUNDLE_PRICE_EUR = 25;
+const INDIVIDUAL_GAME_PRICE_EUR = 4;
 // Games 1-2 are free; only 3-10 are sold individually (matches Routes/games.js).
 const INDIVIDUAL_GAME_ID = /^domain1-game-([3-9]|10)$/;
 
@@ -47,8 +47,7 @@ function priceGameItem(id) {
 // Not a Sanity document either — mirrors FrontEnd/src/Utils/staticResources.js.
 // Keep the id and price in step with that file if either changes.
 const FFC_BUNDLE_ID = "ffc-bundle";
-// EUR fallback only — the charged price is FIXED_PKR_PRICES below.
-const FFC_BUNDLE_PRICE_EUR = 56.0;
+const FFC_BUNDLE_PRICE_EUR = 55;
 // The real Sanity resource + game IDs a paid FFC Bundle unlocks, on top of
 // the bundle's own ID. Verified against the live dataset — keep in step if
 // any of these resources/games are ever renamed or removed.
@@ -71,8 +70,7 @@ const FFC_BUNDLE_CONTENTS = [
 // --- Training Bundle --------------------------------------------------
 // Also not a Sanity document — mirrors FrontEnd/src/Utils/staticResources.js.
 const TRAINING_BUNDLE_ID = "training-bundle";
-// EUR fallback only — the charged price is FIXED_PKR_PRICES below.
-const TRAINING_BUNDLE_PRICE_EUR = 22.8;
+const TRAINING_BUNDLE_PRICE_EUR = 24;
 // The real Sanity training IDs a paid Training Bundle unlocks. Verified
 // against the live dataset.
 const TRAINING_BUNDLE_CONTENTS = [
@@ -82,12 +80,26 @@ const TRAINING_BUNDLE_CONTENTS = [
   "bf63f6fb-c3ff-4787-aba7-fb3ed74d9a1a", // Training #4: Whole Interval
 ];
 
-// --- Fixed PKR prices --------------------------------------------------
-// These items are priced in PKR, not EUR: Pakistani visitors see exactly this
-// figure, PayFast charges exactly this figure, and EUR/USD visitors see it
-// converted at the live rate. Anything not listed stays EUR-priced (Sanity
-// `price` / the constants above). The frontend reads this map from
+// --- Fixed prices ------------------------------------------------------
+// Pakistani visitors see and pay FIXED_PKR_PRICES. Everyone else sees the
+// whole-euro FIXED_EUR_PRICES and is charged that converted to PKR (PayFast
+// only settles in PKR). Anything not listed is EUR-priced (Sanity `price` /
+// the constants above). The frontend reads both maps from
 // GET /paypal/currency, so this is the only place to change these prices.
+const FIXED_EUR_PRICES = {
+  "0063aeaf-3355-42f2-9533-31482f8aa7f9": 8, // FFC- Class Guide book
+  "66a24624-06f8-4b54-9357-1f6a8f267545": 8, // FFC- Feature Guide Book
+  "c10906d4-bc72-482e-b5c1-d11e097f7bd6": 8, // FFC- Function Guide Book
+  "8f66126b-11a1-44b7-8f5c-5692c70d5caf": 8, // FFC- Features Workbook
+  "ffb1b868-2dc1-433e-af32-a4347ce8901c": 8, // FFC- Function workbook
+  "3bab9f72-b36a-4b22-a25f-92143533cc3b": 6, // Training #1: Frequency
+  "5a057717-3f83-4f04-96e4-a149fd3db9d8": 6, // Training #2: Duration and Latency
+  "556722fa-61b3-40e0-a7ec-3e246e50c238": 6, // Training #3: Rate Measurement
+  "bf63f6fb-c3ff-4787-aba7-fb3ed74d9a1a": 6, // Training #4: Whole Interval
+  [FFC_BUNDLE_ID]: FFC_BUNDLE_PRICE_EUR,
+  [TRAINING_BUNDLE_ID]: TRAINING_BUNDLE_PRICE_EUR,
+};
+
 const FIXED_PKR_PRICES = {
   "0063aeaf-3355-42f2-9533-31482f8aa7f9": 2500, // FFC- Class Guide book
   "66a24624-06f8-4b54-9357-1f6a8f267545": 2500, // FFC- Feature Guide Book
@@ -102,9 +114,9 @@ const FIXED_PKR_PRICES = {
   [TRAINING_BUNDLE_ID]: 7500,
 };
 
-// EUR-priced items are charged in whole rupees rounded to the nearest 50 —
-// the same rounding the frontend displays (Utils/Context.jsx), so the PKR
-// price shown is the PKR price charged.
+// Euro prices are charged in whole rupees rounded to the nearest 50 — the
+// same rounding the frontend displays (Utils/Context.jsx), so the PKR price
+// shown is the PKR price charged.
 const pkrFromEur = (eur, eurToPkr) => Math.round((eur * eurToPkr) / 50) * 50;
 
 function priceStaticItem(id) {
@@ -176,10 +188,16 @@ function parseTestOverrides() {
  * Throws if any ID is unknown or unpriced, so an unrecognised item can never be
  * silently charged as free.
  *
+ * `pkrPricing` picks the price list: true for Pakistani visitors (fixed PKR),
+ * false for everyone else (whole euros, converted). It comes from the currency
+ * the visitor was shown, so they pay what they saw. The two lists differ by at
+ * most ~Rs 150 per item, so claiming the other one gains nothing worth having.
+ *
  * @param {string[]} itemIds
+ * @param {{pkrPricing?: boolean}} [options]
  * @returns {Promise<{items: Array, eurTotal: number, fxRate: number, pkrAmount: number}>}
  */
-async function resolveCart(itemIds) {
+async function resolveCart(itemIds, { pkrPricing = false } = {}) {
   const ids = [...new Set((itemIds || []).filter(Boolean).map(String))];
   if (!ids.length) throw new Error("Cart is empty");
 
@@ -216,11 +234,12 @@ async function resolveCart(itemIds) {
   // Priced per line, exactly as the cart displays it. For fixed-PKR items,
   // priceEur is the EUR equivalent at today's rate (for reporting only).
   for (const item of items) {
-    const fixed = FIXED_PKR_PRICES[item.id];
-    if (fixed) {
-      item.pricePkr = fixed;
-      item.priceEur = round2(fixed / fxRate);
+    const fixedPkr = pkrPricing ? FIXED_PKR_PRICES[item.id] : null;
+    if (fixedPkr) {
+      item.pricePkr = fixedPkr;
+      item.priceEur = round2(fixedPkr / fxRate);
     } else {
+      item.priceEur = FIXED_EUR_PRICES[item.id] ?? item.priceEur;
       item.pricePkr = pkrFromEur(item.priceEur, fxRate);
     }
   }
@@ -260,6 +279,7 @@ module.exports = {
   getEurRates,
   getEurToPkrRate,
   FIXED_PKR_PRICES,
+  FIXED_EUR_PRICES,
   priceGameItem,
   GAMES_BUNDLE_ID,
   BUNDLE_CONTENTS,

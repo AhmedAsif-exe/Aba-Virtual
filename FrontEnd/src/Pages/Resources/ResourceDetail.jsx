@@ -28,43 +28,7 @@ import { getResourcePreview } from "Utils/resourcePreviews";
 import BundleLanding from "./BundleLanding";
 import TrainingBundleLanding from "./TrainingBundleLanding";
 import Seo from "Utils/Seo";
-
-function AuthorIntro({ authors }) {
-  const author = authors?.[0];
-
-  if (!author) return null;
-
-  return (
-    <section className="bg-[#f7fafc] py-14 px-6 rounded-xl mt-10 shadow-inner">
-      <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-12">
-        {/* Left: Text */}
-        <div className="flex-1 text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#265c7e]">
-            About the Trainer
-          </h1>
-
-          <div className="mt-5 space-y-4 text-gray-700 leading-relaxed">
-            {author.description?.map((d, i) => (
-              <p key={i}>{d}</p>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Profile */}
-        <div className="flex flex-col items-center">
-          <img
-            src={author.image.asset.url}
-            alt={author.name}
-            className="w-56 h-56 rounded-full object-cover shadow-lg border-4 border-[#45B4B3]/20"
-          />
-          <h3 className="mt-4 text-xl font-bold text-[#265c7e]">
-            {author.name}
-          </h3>
-        </div>
-      </div>
-    </section>
-  );
-}
+import TrainerIntro from "./TrainerIntro";
 
 function HeroPreview({ preview, title }) {
   const [expanded, setExpanded] = useState(false);
@@ -397,7 +361,7 @@ export default function ResourceDetail() {
           </Alert>
         )}
 
-        <AuthorIntro authors={resource.authors} />
+        <TrainerIntro author={resource.authors?.[0]} className="mt-10" />
       </section>
     </Container>
   );

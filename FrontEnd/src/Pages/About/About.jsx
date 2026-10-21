@@ -9,44 +9,41 @@ import gsap from "gsap";
 import Faq from "./Faq";
 const meta = [
   {
-    heading: "Our Vision on aba.virtual",
+    heading: "Our vision",
     src: faiza,
-    remark: "Focused work real progress",
+    remark: "Focused work, real progress",
     content: (
       <>
-        Hi! I’m Faiza Faizan the founder of ABA Virtual & a dedicated QASP-S,
-        who thrived as a coach and a remote ABA trainer. My journey in the filed
-        of ABA started in 2018 back when I was a
-        <i>Registered Behavior Technician (RBT)</i>. I enjoyed being a home
-        therapist, remedial therapist and also a clinician in the past. On the
-        onset of COVID-19 I was trained to coach parents and other caregivers on
-        the principles of <i>Applied Behavior Analysis (ABA)</i>. Super
-        reinforced by the outcomes my work became my passion. To this date I
-        aspire to stretch my competencies to higher levels- in order to overcome
-        challenges, for faster growth and extended learning for both caregivers
-        and professionals. ABA Virtual is designed for caregivers, learners and
-        therapists to promote independence on learning, having access to remote
-        therapy and learning through engagement. The vision is to apply ABA in
-        different areas, aiming to empower individuals & amplify potentials to
-        enhance independence and quality of life.
+        ABA Virtual was founded by Faiza Faizan, a QASP-S who has thrived as a
+        coach and remote ABA trainer. Her journey in the field of ABA began in
+        2018 as a <i>Registered Behavior Technician (RBT)</i>, and she has since
+        worked as a home therapist, a remedial therapist and a clinician. At the
+        onset of COVID-19, she trained to coach parents and other caregivers in
+        the principles of <i>Applied Behavior Analysis (ABA)</i>. Strongly
+        reinforced by the outcomes, this work became our passion. We keep
+        building our skills so that caregivers and professionals can overcome
+        challenges, grow faster and keep learning. ABA Virtual is designed for
+        caregivers, learners and therapists: it promotes independent learning,
+        access to remote therapy, and learning through engagement. Our vision
+        is to apply ABA across different areas of life, empowering individuals
+        to reach their potential and improving their independence and quality
+        of life.
       </>
     ),
     reverse: false,
   },
   {
-    heading: "Why ABA virtual?",
+    heading: "Why ABA Virtual?",
     src: location,
     remark: "A structure with flexibility and ease",
     content: (
       <>
-        Our vision does not limit itself in providing therapy.The platform
-        dedicates itself to provide easier support to learning individuals
-        including caregivers, students and therapists based on evidence based
-        strategies. The intention is to become a potent platform of
-        accessibility in the areas that do not serve therapeutic services or
-        have scarcity of resources. Aba Virtual extends its support and ambition
-        in providing all services remotely while sitting at your convenient
-        locations.
+        Our vision goes beyond providing therapy. ABA Virtual is dedicated to
+        making support easier to reach for learners, caregivers, students and
+        therapists, using evidence-based strategies. We aim to be an
+        accessible platform for places where therapeutic services are
+        unavailable or resources are scarce. All of our services are delivered
+        remotely, so you can take part from wherever is convenient for you.
       </>
     ),
     reverse: true,
@@ -96,34 +93,35 @@ const About = ({ children }) => {
   }, []);
   return (
     <>
-      <div className="mt-[120px] l:px-[100px] px-[25px]">
-        <div id="about-section" className="mt-12 text-center">
+      <section className="ambient pt-[130px] t:pt-[150px] pb-10">
+        <div id="about-section" className="section text-center">
           <h3
             id="about-line1"
-            className="text-[#28a5a8] t:text-xl text-md my-1 font-semibold"
+            className="eyebrow justify-center text-teal m-0"
           >
             Know us better
           </h3>
 
-          <h1 id="about-line2" className="t:text-5xl font-bold my-1 text-2xl">
+          <h1 id="about-line2" className="mt-3 mb-0 text-[34px] t:text-[52px] font-extrabold text-navy">
             About
-            <span className="ml-3" style={{ color: "#265C7E" }}>
-              aba<span style={{ color: "#f97544" }}>.virtual</span>
+            <span className="ml-3 text-brand">
+              aba<span className="text-coral">.virtual</span>
             </span>
           </h1>
 
-          <p id="about-line3" className="mt-3 text-sm">
+          <p id="about-line3" className="mt-3 mb-0 text-[17px] text-slate-600">
             Making lives a bit simpler and easier at each step
           </p>
 
           <img
             id="about-image"
             src={about}
-            alt="about"
-            className="mb-8 mt-4 w-full"
+            alt="Colourful glass discs"
+            className="mt-10 h-[220px] t:h-[340px] w-full rounded-3xl object-cover shadow-lift"
           />
         </div>
-
+      </section>
+      <div className="l:px-[100px] px-[25px]">
         {meta.map((m, idx) => (
           <WhatIDoSection {...m} key={idx} idx={idx} />
         ))}

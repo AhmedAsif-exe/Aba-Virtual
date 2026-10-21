@@ -1,466 +1,256 @@
 import * as React from "react";
-import { styled } from "@mui/material/styles";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Box,
-  AppBar,
-  Toolbar,
-  Button,
-  IconButton,
-  Container,
+  Avatar,
   Divider,
+  Drawer,
+  IconButton,
+  ListItemIcon,
   Menu,
   MenuItem,
-  ListItemIcon,
-  Drawer,
-  Typography,
-  Avatar,
-  Badge,
 } from "@mui/material";
-import { logout } from "axiosInstance";
-import { toast } from "react-toastify";
-import { useProjectContext } from "Utils/Context";
-import logo from "Assets/Images/logo-removebg-preview.png";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SchoolIcon from "@mui/icons-material/School";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useNavigate } from "react-router-dom";
-const StyledToolbar = styled(Toolbar)(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  flexShrink: 0,
-  borderRadius: `calc(${theme.shape.borderRadius}px + 8px)`,
-  backdropFilter: "blur(24px)",
-  border: "1px solid",
-  borderColor: (theme.vars || theme).palette.divider,
-  //   backgroundColor: theme.vars
-  //     ? `rgba(${theme.vars.palette.background.defaultChannel} / 0.4)`
-  //     : alpha(theme.palette.background.default, 0.4),
-  backgroundColor: "rgba(4, 37, 57, 0.8)",
-  boxShadow: (theme.vars || theme).shadows[1],
-  padding: "8px 12px",
-}));
+import { toast } from "react-toastify";
+import { logout } from "axiosInstance";
+import { useProjectContext } from "Utils/Context";
+import logo from "Assets/Images/logo-removebg-preview.png";
+
+// Public navigation, shared by the desktop bar and the mobile drawer.
+const NAV = [
+  { to: "/resources", label: "Training" },
+  { to: "/games", label: "Games" },
+  { to: "/blogs", label: "Blog" },
+  { to: "/about", label: "About" },
+  { to: "/contact", label: "Contact" },
+];
+
+const isActive = (pathname, to) => pathname === to || pathname.startsWith(`${to}/`);
 
 export default function AppAppBar() {
   const [open, setOpen] = React.useState(false);
   const [profileMenuAnchor, setProfileMenuAnchor] = React.useState(null);
-  const { user, loggedIn, loading, cart } = useProjectContext();
+  const { user, loggedIn } = useProjectContext();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
 
-  // Supervision portal entry point. Shown only to accounts that have a
-  // portalRole; everyone else never sees the link. Access itself is decided
-  // server-side, so this is navigation, not security.
+  // Supervision portal entry point, always visible. Supervisors and
+  // supervisees go straight to their portal; everyone else (visitors and
+  // customers, i.e. potential supervisors) sees the portal and its plans.
+  // Access itself is decided server-side, so this is navigation, not security.
   const portalLink =
     user?.portalRole === "supervisor"
-      ? { to: "/portal/supervisees", label: "Supervision" }
+      ? { to: "/portal/supervisees", label: "Supervision portal" }
       : user?.portalRole === "supervisee"
         ? { to: "/portal", label: "My supervision" }
-        : // Everyone else is a potential supervisor: offer the plans.
-          { to: "/supervision-plans", label: "Supervision portal" };
+        : { to: "/supervision-plans", label: "Supervision portal" };
+  const portalActive =
+    pathname.startsWith("/portal") || pathname === "/supervision-plans";
   // View-only portals other supervisors have shared with this email.
   const sharedLink =
     user?.sharedWithMe > 0 ? { to: "/portal/shared", label: "Shared with me" } : null;
-  const toggleDrawer = (newOpen) => () => {
-    setOpen(newOpen);
-  };
 
-  const navigate = useNavigate();
-  const handleNavigation = (path) => {
-    navigate(path);
+  const go = (path) => {
+    setProfileMenuAnchor(null);
     setOpen(false);
+    navigate(path);
   };
 
   const handleSignOut = async () => {
     setProfileMenuAnchor(null);
     setOpen(false);
     await logout();
-    toast.success("Logged Out Successfully");
+    toast.success("Logged out successfully");
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
   };
+
+  const navLinkClass = (active) =>
+    `rounded-lg px-3 py-2 text-[14px] font-medium no-underline transition-colors ${
+      active ? "bg-white/15 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"
+    }`;
+
   return (
-    <AppBar
-      position="fixed"
-      enableColorOnDark
-      sx={{
-        boxShadow: 0,
-        bgcolor: "transparent",
-        backgroundImage: "none",
-        mt: "calc(var(--template-frame-height, 0px) + 28px)",
-      }}
-    >
-      <Container maxWidth="lg">
-        <StyledToolbar variant="dense" disableGutters>
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: "flex",
-              alignItems: "center",
-              px: 0,
-              justifyContent: "space-between",
+    <header className="fixed inset-x-0 top-0 z-[1100] px-3 pt-4 t:pt-5">
+      <nav
+        aria-label="Main"
+        className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[rgba(4,37,57,0.82)] px-3 py-2 shadow-[0_10px_30px_-10px_rgba(4,37,57,0.6)] backdrop-blur-xl"
+      >
+        <Link to="/" className="flex items-center gap-2 no-underline" aria-label="ABA Virtual home">
+          <img src={logo} alt="" width={36} height={36} className="h-9 w-9 rounded-full bg-white object-contain p-0.5" />
+          <span className="font-display text-[17px] font-bold text-white">
+            aba<span className="text-coral">.virtual</span>
+          </span>
+        </Link>
+
+        {/* Desktop links */}
+        <div className="hidden items-center gap-1 l:flex">
+          {NAV.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className={navLinkClass(isActive(pathname, to))}
+              aria-current={isActive(pathname, to) ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
+          <Link
+            to={portalLink.to}
+            aria-current={portalActive ? "page" : undefined}
+            className={`ml-1 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] font-semibold no-underline transition ${
+              portalActive
+                ? "bg-violet-500 text-white"
+                : "bg-violet-500/20 text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-500/35"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_10px_2px_rgba(167,139,250,0.8)]" aria-hidden="true" />
+            {portalLink.label}
+          </Link>
+        </div>
+
+        {/* Desktop account area */}
+        <div className="hidden items-center gap-2 l:flex">
+          {loggedIn ? (
+            <>
+              <IconButton
+                sx={{ p: 0 }}
+                aria-label="Account menu"
+                aria-controls={profileMenuAnchor ? "profile-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={profileMenuAnchor ? "true" : undefined}
+                onClick={(e) => setProfileMenuAnchor(e.currentTarget)}
+              >
+                <Avatar src={user?.pfp} alt={user?.name || "Account"} />
+              </IconButton>
+              <Menu
+                id="profile-menu"
+                anchorEl={profileMenuAnchor}
+                open={Boolean(profileMenuAnchor)}
+                onClose={() => setProfileMenuAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                <MenuItem onClick={() => go(portalLink.to)}>
+                  <ListItemIcon>
+                    <SchoolIcon fontSize="small" />
+                  </ListItemIcon>
+                  {portalLink.label}
+                </MenuItem>
+                {sharedLink && (
+                  <MenuItem onClick={() => go(sharedLink.to)}>
+                    <ListItemIcon>
+                      <VisibilityIcon fontSize="small" />
+                    </ListItemIcon>
+                    {sharedLink.label}
+                  </MenuItem>
+                )}
+                <MenuItem onClick={() => go("/account")}>
+                  <ListItemIcon>
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  My account
+                </MenuItem>
+                <MenuItem onClick={handleSignOut}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  Sign out
+                </MenuItem>
+              </Menu>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className={navLinkClass(pathname === "/login")}>
+                Log in
+              </Link>
+              <Link to="/signup" className="btn-primary !min-h-0 !py-2 !px-4 !text-[14px]">
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Mobile */}
+        <div className="l:hidden">
+          <IconButton aria-label="Open menu" onClick={() => setOpen(true)}>
+            <MenuIcon sx={{ color: "white" }} />
+          </IconButton>
+          <Drawer
+            anchor="top"
+            open={open}
+            onClose={() => setOpen(false)}
+            PaperProps={{
+              sx: { backgroundColor: "rgba(4, 37, 57, 0.96)", backdropFilter: "blur(24px)", color: "white" },
             }}
           >
-            <Box
-              display={"flex"}
-              alignItems={"center"}
-              flexDirection={"row"}
-              justifyContent={"space-between"}
-              onClick={navigate.bind(this, "/")}
-            >
-              <Avatar src={logo} />
-              <Typography px={"10px"} fontWeight="bold" color="#FFFFFF">
-                aba
-                <Box component="span" sx={{ color: "#f97544" }}>
-                  .virtual
-                </Box>
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: { xs: "none", md: "flex" } }}>
-              <a href="/" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  color="info"
-                  size="small"
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  Home
-                </Button>
-              </a>
-              <a href="/about" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  color="info"
-                  size="small"
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  About
-                </Button>
-              </a>
-              <a href="/blogs" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  color="info"
-                  size="small"
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  Blog
-                </Button>
-              </a>
-              <a href="/resources" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  color="info"
-                  size="small"
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  Resources
-                </Button>
-              </a>
-              <a href="/games" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  color="info"
-                  size="small"
-                  onClick={navigate.bind(this, "/games")}
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  Games
-                </Button>
-              </a>
-              <a href="/contact" style={{ textDecoration: "none" }}>
-                <Button
-                  variant="text"
-                  size="small"
-                  sx={{ minWidth: 0, color: "#ffffff", mx: 1 }}
-                >
-                  Contact
-                </Button>
-              </a>
-            </Box>
-
-            {loggedIn ? (
-              <Box
-                width={"140px"}
-                sx={{
-                  display: { xs: "none", md: "flex" },
-                  gap: 1,
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                }}
-              >
-                <IconButton
-                  sx={{ padding: 0 }}
-                  aria-controls={
-                    profileMenuAnchor ? "profile-menu" : undefined
-                  }
-                  aria-haspopup="true"
-                  aria-expanded={profileMenuAnchor ? "true" : undefined}
-                  onClick={(e) => setProfileMenuAnchor(e.currentTarget)}
-                >
-                  {<Avatar src={user.pfp} />}
+            <div className="flex flex-col gap-1 p-4">
+              <div className="flex justify-end">
+                <IconButton aria-label="Close menu" onClick={() => setOpen(false)}>
+                  <CloseRoundedIcon sx={{ color: "white" }} />
                 </IconButton>
-                <Menu
-                  id="profile-menu"
-                  anchorEl={profileMenuAnchor}
-                  open={Boolean(profileMenuAnchor)}
-                  onClose={() => setProfileMenuAnchor(null)}
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+              </div>
+              {[{ to: "/", label: "Home" }, ...NAV].map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setOpen(false)}
+                  className={`${navLinkClass(to === "/" ? pathname === "/" : isActive(pathname, to))} !py-3 !text-[16px]`}
                 >
-                  {portalLink && (
-                    <MenuItem
-                      onClick={() => {
-                        setProfileMenuAnchor(null);
-                        navigate(portalLink.to);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <SchoolIcon fontSize="small" />
-                      </ListItemIcon>
-                      {portalLink.label}
-                    </MenuItem>
-                  )}
+                  {label}
+                </Link>
+              ))}
+              <Link
+                to={portalLink.to}
+                onClick={() => setOpen(false)}
+                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-violet-700 px-4 py-3 text-[16px] font-semibold text-white no-underline"
+              >
+                <span className="h-2 w-2 rounded-full bg-violet-200" aria-hidden="true" />
+                {portalLink.label}
+              </Link>
+              <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.15)" }} />
+              {loggedIn ? (
+                <>
                   {sharedLink && (
-                    <MenuItem
-                      onClick={() => {
-                        setProfileMenuAnchor(null);
-                        navigate(sharedLink.to);
-                      }}
-                    >
+                    <MenuItem onClick={() => go(sharedLink.to)} sx={{ color: "white" }}>
                       <ListItemIcon>
-                        <VisibilityIcon fontSize="small" />
+                        <VisibilityIcon fontSize="small" sx={{ color: "white" }} />
                       </ListItemIcon>
                       {sharedLink.label}
                     </MenuItem>
                   )}
-                  <MenuItem
-                    onClick={() => {
-                      setProfileMenuAnchor(null);
-                      navigate("/account");
-                    }}
-                  >
+                  <MenuItem onClick={() => go("/account")} sx={{ color: "white" }}>
                     <ListItemIcon>
-                      <SettingsIcon fontSize="small" />
+                      <Avatar src={user?.pfp} alt="" sx={{ width: 24, height: 24 }} />
                     </ListItemIcon>
-                    Settings
+                    My account
                   </MenuItem>
-                  <MenuItem onClick={handleSignOut}>
+                  <MenuItem onClick={handleSignOut} sx={{ color: "white" }}>
                     <ListItemIcon>
-                      <LogoutIcon fontSize="small" />
+                      <LogoutIcon fontSize="small" sx={{ color: "white" }} />
                     </ListItemIcon>
-                    Sign Out
+                    Sign out
                   </MenuItem>
-                </Menu>
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  display: { xs: "none", md: "flex" },
-                  gap: 1,
-                  alignItems: "center",
-                }}
-              >
-                <a href="/login" style={{ textDecoration: "none" }}>
-                  <Button color="#f97544" variant="text" size="small">
-                    Sign in
-                  </Button>
-                </a>
-                <a href="/signup" style={{ textDecoration: "none" }}>
-                  <Button
-                    sx={{ backgroundColor: "#f97544" }}
-                    variant="contained"
-                    size="small"
-                  >
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <Link to="/login" onClick={() => setOpen(false)} className="btn-on-dark">
+                    Log in
+                  </Link>
+                  <Link to="/signup" onClick={() => setOpen(false)} className="btn-primary">
                     Sign up
-                  </Button>
-                </a>
-              </Box>
-            )}
-          </Box>
-          <Box sx={{ display: { xs: "flex", md: "none" }, gap: 1 }}>
-            <IconButton aria-label="Menu button" onClick={toggleDrawer(true)}>
-              <MenuIcon sx={{ color: "white" }} />
-            </IconButton>
-            <Drawer
-              anchor="top"
-              open={open}
-              onClose={toggleDrawer(false)}
-              PaperProps={{
-                sx: {
-                  top: "var(--template-frame-height, 0px)",
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  p: 2,
-                  backgroundColor: "rgba(4, 37, 57, 0.8)",
-                  backdropFilter: "blur(24px)",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <IconButton onClick={toggleDrawer(false)}>
-                    <CloseRoundedIcon sx={{ color: "white" }} />
-                  </IconButton>
-                </Box>{" "}
-                <MenuItem>
-                  <a href="/" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      color="info"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      Home
-                    </Button>
-                  </a>
-                </MenuItem>
-                <MenuItem>
-                  <a href="/about" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      color="info"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      About
-                    </Button>
-                  </a>
-                </MenuItem>
-                <MenuItem>
-                  <a href="/blogs" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      color="info"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      Blog
-                    </Button>
-                  </a>
-                </MenuItem>
-                <MenuItem>
-                  <a href="/resources" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      color="info"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      Resources
-                    </Button>
-                  </a>
-                </MenuItem>
-                <MenuItem>
-                  <a href="/games" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      color="info"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      Games
-                    </Button>
-                  </a>
-                </MenuItem>
-                <MenuItem>
-                  <a href="/contact" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="text"
-                      size="small"
-                      sx={{ minWidth: 0, color: "#ffffff" }}
-                    >
-                      Contact
-                    </Button>
-                  </a>
-                </MenuItem>
-                <Divider sx={{ my: 3 }} />
-                {loggedIn ? (
-                  <>
-                    {portalLink && (
-                      <MenuItem
-                        onClick={() => handleNavigation(portalLink.to)}
-                        sx={{ color: "white" }}
-                      >
-                        <ListItemIcon>
-                          <SchoolIcon fontSize="small" sx={{ color: "white" }} />
-                        </ListItemIcon>
-                        {portalLink.label}
-                      </MenuItem>
-                    )}
-                    {sharedLink && (
-                      <MenuItem
-                        onClick={() => handleNavigation(sharedLink.to)}
-                        sx={{ color: "white" }}
-                      >
-                        <ListItemIcon>
-                          <VisibilityIcon fontSize="small" sx={{ color: "white" }} />
-                        </ListItemIcon>
-                        {sharedLink.label}
-                      </MenuItem>
-                    )}
-                    <MenuItem
-                      onClick={() => handleNavigation("/account")}
-                      sx={{ color: "white" }}
-                    >
-                      <ListItemIcon>
-                        <Avatar
-                          src={user?.pfp}
-                          sx={{ width: 24, height: 24 }}
-                        />
-                      </ListItemIcon>
-                      Settings
-                    </MenuItem>
-                    <MenuItem onClick={handleSignOut} sx={{ color: "white" }}>
-                      <ListItemIcon>
-                        <LogoutIcon fontSize="small" sx={{ color: "white" }} />
-                      </ListItemIcon>
-                      Sign Out
-                    </MenuItem>
-                  </>
-                ) : (
-                  <>
-                    <MenuItem>
-                      <a href="/login" style={{ textDecoration: "none" }}>
-                        <Button
-                          color="#f97544"
-                          variant="text"
-                          size="small"
-                          fullWidth
-                          sx={{ color: "white" }}
-                        >
-                          Sign in
-                        </Button>
-                      </a>
-                    </MenuItem>
-                    <MenuItem>
-                      <a href="/signup" style={{ textDecoration: "none" }}>
-                        <Button
-                          sx={{ backgroundColor: "#f97544" }}
-                          variant="contained"
-                          size="small"
-                          fullWidth
-                        >
-                          Sign up
-                        </Button>
-                      </a>
-                    </MenuItem>
-                  </>
-                )}
-              </Box>
-            </Drawer>
-          </Box>
-        </StyledToolbar>
-      </Container>
-    </AppBar>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </Drawer>
+        </div>
+      </nav>
+    </header>
   );
 }

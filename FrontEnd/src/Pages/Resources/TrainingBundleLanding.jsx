@@ -17,6 +17,7 @@ import {
 import { useProjectContext, formatAmount } from "Utils/Context";
 import { compareAtPrice } from "Utils/staticResources";
 import rusFlag from "Assets/Images/Flag/rus.png";
+import TrainerIntro, { useFirstTrainer } from "./TrainerIntro";
 
 // Real per-training detail — richer than the plain label list in
 // staticResources.js's bundleContents, since there are only 4 of these and
@@ -76,6 +77,7 @@ export default function TrainingBundleLanding({
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(null);
   const { currency, priceOf } = useProjectContext();
+  const trainer = useFirstTrainer();
 
   const price = priceOf(resource);
   const compareAt = compareAtPrice(resource, priceOf);
@@ -167,7 +169,7 @@ export default function TrainingBundleLanding({
             </div>
 
             <div className="text-white/50 text-xs mt-4">
-              Taught by Niha Khan, QBA
+              Taught by {trainer?.name || "Niha Khan (QBA)"}
             </div>
           </div>
 
@@ -289,6 +291,10 @@ export default function TrainingBundleLanding({
           </div>
         </div>
       </section>
+
+      {/* TRAINER — name, photo and bio come from Sanity (the trainings'
+          Authors field), so this stays in step with what's entered there. */}
+      <TrainerIntro author={trainer} className="mt-14" />
 
       {/* TESTIMONIAL */}
       <section className="mt-14 max-w-3xl">

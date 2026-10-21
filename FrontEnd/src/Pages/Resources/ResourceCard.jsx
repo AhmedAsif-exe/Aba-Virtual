@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button } from "@mui/material";
 import { Link } from "react-router-dom";
 import { useProjectContext, formatAmount } from "Utils/Context";
 
@@ -19,48 +18,54 @@ export default function ResourceCard({ resource, category, preview = false }) {
 
   if (category === "My-Learning" && !isPaid) return null;
 
+  const trainer = resource.authors?.[0]?.name;
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden hover:shadow-xl transition-shadow duration-300">
-      <Link to={target}>
+    <article className="card card-hover group flex flex-col overflow-hidden text-left h-full">
+      <Link to={target} className="block overflow-hidden" tabIndex={-1} aria-hidden="true">
         <img
           src={resource?.image?.asset?.url}
-          alt={resource.title}
-          className="aspect-video object-cover border-b border-gray-200 cursor-pointer w-full"
+          alt=""
+          loading="lazy"
+          className="aspect-video w-full object-cover transition duration-500 group-hover:scale-[1.03]"
         />
       </Link>
 
-      <div className="p-4 flex flex-col flex-grow">
-        <h2 className="text-lg font-bold text-[#f97544] line-clamp-1">
-          {resource.title}
-        </h2>
-        <p className="text-sm text-emerald-600">
-          {resource.category} — {resource.type}
-        </p>
-        <p className="text-gray-600 text-sm mt-2 line-clamp-2">
-          {resource.description}
-        </p>
-        {/* Price */}
-        <p className="text-lg font-bold text-[#f97544] mt-auto">
-          {formatAmount(priceOf(resource), currency)} ONLY
-        </p>
-        {/* Buttons */}
-        <Button
-          component={Link}
-          to={target}
-          fullWidth
-          sx={{
-            mt: 1.5,
-            py: 1,
-            backgroundColor: "#265c7e",
-            color: "white",
-            fontWeight: 700,
-            borderRadius: 2,
-            "&:hover": { backgroundColor: "#1e4e6a" },
-          }}
-        >
-          See More
-        </Button>
+      <div className="p-5 flex flex-col flex-grow">
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-teal/10 px-2.5 py-0.5 text-xs font-semibold text-[#2b7f7e]">
+            {resource.category}
+          </span>
+          {resource.type && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              {resource.type}
+            </span>
+          )}
+          {isPaid && (
+            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+              Owned
+            </span>
+          )}
+        </div>
+
+        <h3 className="mt-3 text-lg font-bold text-navy line-clamp-2 m-0">
+          <Link to={target} className="no-underline text-inherit hover:text-brand">
+            {resource.title}
+          </Link>
+        </h3>
+        {trainer && <p className="text-xs text-slate-500 mt-1 mb-0">Trainer: {trainer}</p>}
+        <p className="text-slate-600 text-sm mt-2 line-clamp-2">{resource.description}</p>
+
+        <div className="mt-auto pt-4 flex items-center justify-between gap-3">
+          <p className="text-xl font-bold text-navy m-0">
+            {formatAmount(priceOf(resource), currency)}
+          </p>
+          <Link to={target} className="btn-dark !py-2 !px-4 !text-sm">
+            See more
+            <span className="sr-only"> about {resource.title}</span>
+          </Link>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
