@@ -113,39 +113,39 @@ export default function SupervisionPlans() {
   return (
     <main className="bg-white">
       {/* HERO */}
-      <section className="relative overflow-hidden bg-[#12082e] pt-[130px] t:pt-[160px] pb-20 text-white">
+      <section className="relative overflow-hidden bg-navy pt-[130px] t:pt-[160px] pb-20 text-white">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 top-10 h-[480px] w-[480px] rounded-full bg-violet-600/40 blur-[120px]" />
+          <div className="absolute -left-32 top-10 h-[480px] w-[480px] rounded-full bg-sea-600/40 blur-[120px]" />
           <div className="absolute -right-24 bottom-0 h-[420px] w-[420px] rounded-full bg-teal/25 blur-[120px]" />
         </div>
         <div className="section relative grid items-center gap-14 l:grid-cols-2">
           <div className="text-left">
-            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-400/10 px-3 py-1 text-[13px] font-semibold text-violet-100">
-              <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_12px_3px_rgba(196,181,253,0.8)]" aria-hidden="true" />
+            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-sea-300/30 bg-sea-400/10 px-3 py-1 text-[13px] font-semibold text-sea-100">
+              <span className="h-2 w-2 rounded-full bg-sea-300 shadow-[0_0_12px_3px_rgba(75,183,186,0.8)]" aria-hidden="true" />
               For ABA supervisors and supervisees
             </p>
             <h1 className="mt-5 mb-0 text-[34px] t:text-[50px] font-extrabold leading-[1.08]">
               The ABA Virtual{" "}
-              <span className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-teal bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-sea-200 via-sea-100 to-teal bg-clip-text text-transparent">
                 Supervision Portal
               </span>
             </h1>
-            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-violet-100/80">
+            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-sea-100/80">
               Track your supervisees' fieldwork hours, supervision meetings,
               progress and assignments in one place. Supervisees log their own
               hours; you review everything.
             </p>
             <div className="mt-8 flex flex-col gap-3 ml:flex-row ml:flex-wrap">
               {isSupervisor && plan?.active ? (
-                <Link to="/portal/supervisees" className="btn-violet">
+                <Link to="/portal/supervisees" className="btn-portal">
                   Open your portal
                 </Link>
               ) : isSupervisee ? (
-                <Link to="/portal" className="btn-violet">
+                <Link to="/portal" className="btn-portal">
                   Open my supervision
                 </Link>
               ) : (
-                <a href="#plans" className="btn-violet">
+                <a href="#plans" className="btn-portal">
                   See plans &amp; pricing
                 </a>
               )}
@@ -154,7 +154,7 @@ export default function SupervisionPlans() {
                   <Link
                     to="/signup"
                     state={{ from: "/supervision-plans" }}
-                    className="btn bg-white text-[#2e1065] shadow-lift hover:-translate-y-0.5"
+                    className="btn bg-white text-navy shadow-lift hover:-translate-y-0.5"
                   >
                     Sign Up
                   </Link>
@@ -203,7 +203,7 @@ export default function SupervisionPlans() {
         <section id="plans" aria-labelledby="plans-heading" className="scroll-mt-28 py-20 t:py-24">
           <div className="section">
             <div className="mx-auto max-w-[640px] text-center">
-              <p className="eyebrow text-violet-600 m-0">Plans &amp; pricing</p>
+              <p className="eyebrow text-sea-600 m-0">Plans &amp; pricing</p>
               <h2 id="plans-heading" className="mt-3 mb-0 text-[30px] t:text-[40px] font-extrabold text-navy">
                 One portal, two ways to pay
               </h2>
@@ -232,7 +232,7 @@ export default function SupervisionPlans() {
                 </ul>
                 <Link
                   to={isSupervisee ? "/portal" : "/login"}
-                  className="btn mt-8 border border-violet-200 bg-violet-50 text-violet-700 hover:-translate-y-0.5 hover:bg-violet-100"
+                  className="btn mt-8 border border-sea-200 bg-sea-50 text-sea-700 hover:-translate-y-0.5 hover:bg-sea-100"
                 >
                   {isSupervisee ? "Open my supervision" : "Log in with your invite"}
                 </Link>
@@ -245,12 +245,12 @@ export default function SupervisionPlans() {
                 return (
                   <article
                     key={item.id}
-                    className="relative flex flex-col rounded-3xl border-2 border-violet-200 bg-white p-7 text-left shadow-[0_20px_50px_-20px_rgba(124,58,237,0.35)] transition duration-300 hover:-translate-y-1 hover:border-violet-400"
+                    className="relative flex flex-col rounded-3xl border-2 border-sea-200 bg-white p-7 text-left shadow-[0_20px_50px_-20px_rgba(38,92,126,0.35)] transition duration-300 hover:-translate-y-1 hover:border-sea-400"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="m-0 text-[20px] font-bold text-navy">{item.name}</h3>
                       {isYearly && saving > 0 && (
-                        <span className="rounded-full bg-gradient-to-r from-violet-500 to-violet-700 px-3 py-1 text-[12px] font-semibold text-white">
+                        <span className="rounded-full bg-gradient-to-r from-sea-500 to-sea-700 px-3 py-1 text-[12px] font-semibold text-white">
                           Save {formatAmount(saving, currency)}
                         </span>
                       )}
@@ -278,7 +278,7 @@ export default function SupervisionPlans() {
                       type="button"
                       disabled={disabled}
                       onClick={() => handleBuy(item)}
-                      className="btn-violet mt-8 w-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                      className="btn-portal mt-8 w-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                     >
                       {buying === item.id
                         ? "Opening checkout…"
@@ -300,10 +300,10 @@ export default function SupervisionPlans() {
       )}
 
       {/* FEATURES */}
-      <section aria-labelledby="features-heading" className="bg-violet-50/60 py-20 t:py-24">
+      <section aria-labelledby="features-heading" className="bg-sea-50/60 py-20 t:py-24">
         <div className="section">
           <div className="mx-auto max-w-[640px] text-center">
-            <p className="eyebrow text-violet-600 m-0">Inside the portal</p>
+            <p className="eyebrow text-sea-600 m-0">Inside the portal</p>
             <h2 id="features-heading" className="mt-3 mb-0 text-[30px] t:text-[40px] font-extrabold text-navy">
               Everything a supervision relationship needs
             </h2>
@@ -311,7 +311,7 @@ export default function SupervisionPlans() {
           <ul className="m-0 mt-12 grid list-none gap-5 p-0 ml:grid-cols-2 l:grid-cols-3">
             {PORTAL_FEATURES.map(({ Icon, title, text }) => (
               <li key={title} className="card card-hover p-6 text-left">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-violet-700 shadow-glow">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sea-400 to-sea-700 shadow-glow">
                   <Icon sx={{ fontSize: 22, color: "white" }} aria-hidden="true" />
                 </span>
                 <h3 className="mt-4 mb-0 text-[17px] font-bold text-navy">{title}</h3>
@@ -344,7 +344,7 @@ export default function SupervisionPlans() {
                       {f.q}
                       <ExpandMoreIcon
                         aria-hidden="true"
-                        sx={{ transition: "transform .2s", transform: open ? "rotate(180deg)" : "none", color: "#7c3aed" }}
+                        sx={{ transition: "transform .2s", transform: open ? "rotate(180deg)" : "none", color: "#265C7E" }}
                       />
                     </button>
                   </h3>

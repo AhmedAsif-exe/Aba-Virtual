@@ -28,11 +28,12 @@ import { toast } from "react-toastify";
 
 import { apiError, formatHours } from "./portalApi";
 
-// Categorical slots 1–2 of the reference palette (validated as an adjacent
-// pair for colour-blind readers); chrome stays neutral so the data leads.
+// Brand blue and orange from the client palette: they differ in lightness as
+// well as hue, so colour-blind readers can still tell them apart; chrome
+// stays neutral so the data leads.
 const COLORS = {
-  primary: "#2a78d6",
-  secondary: "#eb6834",
+  primary: "#265C7E",
+  secondary: "#EC5923",
   grid: "#e6e6e3",
   axis: "#52514e",
 };

@@ -18,9 +18,9 @@ export default function PortalPreview({ className = "" }) {
     <figure className={`relative m-0 ${className}`} aria-label="Illustrative preview of the supervision portal with sample data">
       <div
         aria-hidden="true"
-        className="absolute -inset-6 rounded-[36px] bg-gradient-to-br from-violet-500/40 via-fuchsia-400/20 to-teal/30 blur-3xl"
+        className="absolute -inset-6 rounded-[36px] bg-gradient-to-br from-sea-500/40 via-aqua/20 to-teal/30 blur-3xl"
       />
-      <div className="relative overflow-hidden rounded-[24px] border border-white/15 bg-[#140a33]/80 shadow-glow backdrop-blur-xl" aria-hidden="true">
+      <div className="relative overflow-hidden rounded-[24px] border border-white/15 bg-navy/80 shadow-glow backdrop-blur-xl" aria-hidden="true">
         {/* Window bar */}
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
           <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
@@ -40,7 +40,7 @@ export default function PortalPreview({ className = "" }) {
               {MONTHS.map(({ m, pct }) => (
                 <div key={m} className="flex flex-1 flex-col items-center gap-1.5">
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-violet-600 to-violet-300"
+                    className="w-full rounded-t-md bg-gradient-to-t from-sea-600 to-sea-300"
                     style={{ height: `${(pct / 8) * 100}%` }}
                   />
                   <span className="text-[10px] text-white/50">{m}</span>
@@ -77,7 +77,7 @@ export default function PortalPreview({ className = "" }) {
               <p className="m-0 text-[12px] font-semibold text-white/70">Assignment</p>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-[12px] text-white">Article review</span>
-                <span className="rounded-full bg-violet-400/25 px-2 py-0.5 text-[10px] font-semibold text-violet-100">8/10</span>
+                <span className="rounded-full bg-sea-400/25 px-2 py-0.5 text-[10px] font-semibold text-sea-100">8/10</span>
               </div>
             </div>
           </div>

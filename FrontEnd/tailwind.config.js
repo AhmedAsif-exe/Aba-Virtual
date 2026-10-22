@@ -15,24 +15,29 @@ module.exports = {
         brand: "#265c7e",
         teal: "#45B4B3",
         coral: "#f97544",
-        // Supervision portal sub-brand.
-        violet: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#4c1d95",
-          900: "#2e1065",
+        // Client palette: #FBFBFB, #4BB7BA, #4B9ABB, #265C7E, #EC5923.
+        paper: "#FBFBFB",
+        aqua: "#4BB7BA",
+        ember: "#EC5923",
+        // Tints and shades of #4B9ABB (500) down to #265C7E (700), for the
+        // supervision sections.
+        sea: {
+          50: "#f2f8fb",
+          100: "#e3f0f6",
+          200: "#c4e0ec",
+          300: "#9cc8dc",
+          400: "#6fb0cb",
+          500: "#4B9ABB",
+          600: "#387b9c",
+          700: "#265C7E",
+          800: "#1a4560",
+          900: "#0e2f45",
         },
       },
       boxShadow: {
         soft: "0 1px 2px rgba(4,37,57,0.06), 0 8px 24px -6px rgba(4,37,57,0.12)",
         lift: "0 2px 4px rgba(4,37,57,0.06), 0 18px 40px -10px rgba(4,37,57,0.22)",
-        glow: "0 0 0 1px rgba(167,139,250,0.35), 0 20px 60px -15px rgba(124,58,237,0.55)",
+        glow: "0 0 0 1px rgba(75,183,186,0.35), 0 20px 60px -15px rgba(75,154,187,0.55)",
       },
     },
     screens: {

@@ -8,7 +8,7 @@ const heading = { fontFamily: '"Raleway", "Inter", sans-serif', fontWeight: 700 
 const theme = createTheme({
   palette: {
     primary: { main: "#265c7e", dark: "#1e4e6a", light: "#45B4B3", contrastText: "#fff" },
-    secondary: { main: "#f97544", contrastText: "#fff" },
+    secondary: { main: "#EC5923", contrastText: "#fff" },
     success: { main: "#16a34a" },
     text: { primary: "#1f2937", secondary: "#5b6b7a" },
   },

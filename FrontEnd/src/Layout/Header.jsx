@@ -105,11 +105,11 @@ export default function AppAppBar() {
             aria-current={portalActive ? "page" : undefined}
             className={`ml-1 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] font-semibold no-underline transition ${
               portalActive
-                ? "bg-violet-500 text-white"
-                : "bg-violet-500/20 text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-500/35"
+                ? "bg-sea-500 text-white"
+                : "bg-sea-500/20 text-sea-100 ring-1 ring-sea-400/40 hover:bg-sea-500/35"
             }`}
           >
-            <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_10px_2px_rgba(167,139,250,0.8)]" aria-hidden="true" />
+            <span className="h-2 w-2 rounded-full bg-sea-300 shadow-[0_0_10px_2px_rgba(75,183,186,0.8)]" aria-hidden="true" />
             {portalLink.label}
           </Link>
         </div>
@@ -208,9 +208,9 @@ export default function AppAppBar() {
               <Link
                 to={portalLink.to}
                 onClick={() => setOpen(false)}
-                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-violet-700 px-4 py-3 text-[16px] font-semibold text-white no-underline"
+                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sea-500 to-sea-700 px-4 py-3 text-[16px] font-semibold text-white no-underline"
               >
-                <span className="h-2 w-2 rounded-full bg-violet-200" aria-hidden="true" />
+                <span className="h-2 w-2 rounded-full bg-sea-200" aria-hidden="true" />
                 {portalLink.label}
               </Link>
               <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.15)" }} />

@@ -61,8 +61,8 @@ code {
   .btn-ghost {
     @apply btn border border-brand/25 bg-white/70 text-brand backdrop-blur hover:-translate-y-0.5 hover:border-brand/50 hover:bg-white;
   }
-  .btn-violet {
-    @apply btn bg-gradient-to-r from-violet-500 to-violet-700 text-white shadow-glow hover:-translate-y-0.5 hover:brightness-110;
+  .btn-portal {
+    @apply btn bg-ember text-white shadow-[0_8px_20px_-6px_rgba(236,89,35,0.6)] hover:-translate-y-0.5 hover:bg-[#d44c1a];
   }
   .btn-on-dark {
     @apply btn border border-white/25 bg-white/10 text-white backdrop-blur hover:-translate-y-0.5 hover:bg-white/20;

@@ -57,13 +57,13 @@ export default function SupervisionShowcase() {
     <section
       id="supervision"
       aria-labelledby="supervision-heading"
-      className="relative overflow-hidden bg-[#12082e] py-20 t:py-28 text-white"
+      className="relative overflow-hidden bg-navy py-20 t:py-28 text-white"
     >
       {/* Layered ambient light and a faint grid, for depth. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 top-0 h-[560px] w-[560px] rounded-full bg-violet-600/40 blur-[120px]" />
+        <div className="absolute -left-40 top-0 h-[560px] w-[560px] rounded-full bg-sea-600/40 blur-[120px]" />
         <div className="absolute -right-32 bottom-0 h-[480px] w-[480px] rounded-full bg-teal/25 blur-[120px]" />
-        <div className="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-fuchsia-500/20 blur-[100px]" />
+        <div className="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-aqua/20 blur-[100px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
@@ -79,8 +79,8 @@ export default function SupervisionShowcase() {
       <div className="section relative">
         <div className="grid items-center gap-14 l:grid-cols-[1fr_1fr]">
           <div className="text-left">
-            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-400/10 px-3 py-1 text-[13px] font-semibold text-violet-100">
-              <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_12px_3px_rgba(196,181,253,0.8)]" aria-hidden="true" />
+            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-sea-300/30 bg-sea-400/10 px-3 py-1 text-[13px] font-semibold text-sea-100">
+              <span className="h-2 w-2 rounded-full bg-sea-300 shadow-[0_0_12px_3px_rgba(75,183,186,0.8)]" aria-hidden="true" />
               ABA Virtual Supervision Portal
             </p>
             <h2
@@ -88,11 +88,11 @@ export default function SupervisionShowcase() {
               className="mt-5 mb-0 text-[32px] t:text-[46px] font-extrabold leading-[1.1]"
             >
               Fieldwork supervision,{" "}
-              <span className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-teal bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-sea-200 via-sea-100 to-teal bg-clip-text text-transparent">
                 organised in one place
               </span>
             </h2>
-            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-violet-100/80">
+            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-sea-100/80">
               For ABA supervisors and the trainees they supervise. Your
               supervisees log their hours; you keep meetings, progress and
               assignments together, ready for their certification board.
@@ -100,23 +100,23 @@ export default function SupervisionShowcase() {
 
             <div className="mt-8 flex flex-col gap-3 ml:flex-row ml:flex-wrap">
               {role === "supervisor" ? (
-                <Link to="/portal/supervisees" className="btn-violet">
+                <Link to="/portal/supervisees" className="btn-portal">
                   Open your portal
                 </Link>
               ) : role === "supervisee" ? (
-                <Link to="/portal" className="btn-violet">
+                <Link to="/portal" className="btn-portal">
                   Open my supervision
                 </Link>
               ) : (
                 <>
-                  <Link to="/supervision-plans" className="btn-violet">
+                  <Link to="/supervision-plans" className="btn-portal">
                     Explore Supervision
                   </Link>
                   {!user && (
                     <Link
                       to="/signup"
                       state={{ from: "/supervision-plans" }}
-                      className="btn bg-white text-[#2e1065] shadow-lift hover:-translate-y-0.5"
+                      className="btn bg-white text-navy shadow-lift hover:-translate-y-0.5"
                     >
                       Create Your Account
                     </Link>
@@ -129,7 +129,7 @@ export default function SupervisionShowcase() {
                 </Link>
               )}
             </div>
-            <p className="mt-5 mb-0 text-sm text-violet-100/60">
+            <p className="mt-5 mb-0 text-sm text-sea-100/60">
               {monthly != null ? `From ${formatAmount(monthly, currency)} a month for supervisors` : "Monthly or yearly plans for supervisors"}
               {" · "}supervisees join free.
             </p>
@@ -143,27 +143,27 @@ export default function SupervisionShowcase() {
           {PORTAL_FEATURES.map(({ Icon, title, text }) => (
             <li
               key={title}
-              className="group rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-left backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-violet-300/40 hover:bg-white/[0.07]"
+              className="group rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-left backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-sea-300/40 hover:bg-white/[0.07]"
             >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-violet-700 shadow-glow">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sea-400 to-sea-700 shadow-glow">
                 <Icon sx={{ fontSize: 22, color: "white" }} aria-hidden="true" />
               </span>
               <h3 className="mt-4 mb-0 text-[17px] font-bold text-white">{title}</h3>
-              <p className="mt-2 mb-0 text-[14px] leading-relaxed text-violet-100/70">{text}</p>
+              <p className="mt-2 mb-0 text-[14px] leading-relaxed text-sea-100/70">{text}</p>
             </li>
           ))}
         </ul>
 
         {/* How it works */}
-        <ol className="m-0 mt-14 grid list-none gap-4 rounded-3xl border border-white/10 bg-gradient-to-r from-violet-500/10 to-teal/10 p-6 t:grid-cols-3 t:p-8">
+        <ol className="m-0 mt-14 grid list-none gap-4 rounded-3xl border border-white/10 bg-gradient-to-r from-sea-500/10 to-teal/10 p-6 t:grid-cols-3 t:p-8">
           {STEPS.map((s) => (
             <li key={s.n} className="flex gap-4 text-left">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[15px] font-bold text-[#2e1065]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[15px] font-bold text-navy">
                 {s.n}
               </span>
               <div>
                 <p className="m-0 font-semibold text-white">{s.title}</p>
-                <p className="m-0 mt-1 text-[14px] text-violet-100/70">{s.text}</p>
+                <p className="m-0 mt-1 text-[14px] text-sea-100/70">{s.text}</p>
               </div>
             </li>
           ))}
