@@ -41,7 +41,7 @@ const SEEDS = [
 
 // Private, signed-in-only, or canvas pages: left to the client as before.
 const EXCLUDE = [
-  /^\/(portal|account|login|signup|success|error)(\/|$)/,
+  /^\/(portal|admin|account|login|signup|success|error)(\/|$)/,
   /^\/resources\/[^/]+\/watch$/,
   /^\/games\/domain\/\d+\/\d+$/,
   /\.[a-z0-9]+$/i, // files, not pages

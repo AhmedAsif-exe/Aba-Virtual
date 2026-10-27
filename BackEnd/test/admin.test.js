@@ -45,6 +45,13 @@ describe("access", () => {
     assert.strictEqual((await request(app).get("/admin/organisations").set(as(await makeAdmin()))).status, 200);
   });
 
+  test("/auth/me says whether the user is a site admin", async () => {
+    const admin = await makeAdmin();
+    const other = await User.create({ email: "plain@example.test" });
+    assert.strictEqual((await request(app).get("/auth/me").set(as(admin))).body.user.siteAdmin, true);
+    assert.strictEqual((await request(app).get("/auth/me").set(as(other))).body.user.siteAdmin, false);
+  });
+
   test("nobody can make themselves a site admin through the profile route", async () => {
     const user = await User.create({ email: "sneaky@example.test" });
     await request(app).patch("/auth/profile").set(as(user)).send({ siteAdmin: true, role: "Parent" });

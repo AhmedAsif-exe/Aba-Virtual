@@ -108,6 +108,19 @@ export const boardsApi = {
   remove: (id) => api.delete(`/boards/${id}`),
 };
 
+// ABA Virtual site admins only (Routes/admin.js): Custom plan organisations.
+export const adminApi = {
+  listOrganisations: () => api.get("/admin/organisations"),
+  createOrganisation: (body) => api.post("/admin/organisations", body),
+  updateOrganisation: (id, body) => api.patch(`/admin/organisations/${id}`, body),
+  addMember: (id, body) => api.post(`/admin/organisations/${id}/members`, body),
+  removeMember: (id, userId) => api.delete(`/admin/organisations/${id}/members/${userId}`),
+  recordPayment: (id, body) => api.post(`/admin/organisations/${id}/payments`, body),
+};
+
+/** "2027-03-31" from a date box → the end of that day, UTC. */
+export const endOfDayUtc = (dateInput) => (dateInput ? `${dateInput}T23:59:59.000Z` : "");
+
 /* ---------------------------------------------------------------- *
  * Formatters
  * ---------------------------------------------------------------- */

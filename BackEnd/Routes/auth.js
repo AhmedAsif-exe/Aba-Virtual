@@ -184,6 +184,9 @@ router.get("/me", async (req, res) => {
         // Paid supervisor access; drives the plans page and the renew banner.
         supervisionPlan: planStatus(req.user),
         sharedWithMe,
+        // ABA Virtual staff (scripts/promoteAdmin.js). Shows the admin
+        // screen; /admin re-checks it on every request.
+        siteAdmin: req.user.siteAdmin === true,
       },
     });
   } else {
