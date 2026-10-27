@@ -8,12 +8,17 @@ const daysFromNow = (days) => new Date(Date.now() + days * DAY_MS);
 let counter = 0;
 const uniqueEmail = (prefix) => `${prefix}${++counter}@example.test`;
 
-function makeSupervisor({ planKey = "professional", expiresAt = daysFromNow(30), ...rest } = {}) {
+function makeSupervisor({
+  planKey = "professional",
+  expiresAt = daysFromNow(30),
+  rateEurPerDay = null,
+  ...rest
+} = {}) {
   return User.create({
     name: "Supervisor",
     email: uniqueEmail("supervisor"),
     portalRole: "supervisor",
-    supervisionPlan: { planKey, expiresAt },
+    supervisionPlan: { planKey, expiresAt, rateEurPerDay },
     ...rest,
   });
 }

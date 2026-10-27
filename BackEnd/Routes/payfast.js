@@ -4,7 +4,7 @@ const router = express.Router();
 const User = require("../Schema/User");
 const Order = require("../Schema/Order");
 const { resolveCart, BUNDLE_CONTENTS } = require("../Services/pricing");
-const { isPlanId, extendPlan } = require("../Services/supervisionPlans");
+const { passForItem, quote, apply: applyPlan } = require("../Services/planPurchase");
 const {
   payfastConfig,
   getAccessToken,
@@ -50,20 +50,33 @@ router.post("/initiate", ensureAuth, async (req, res) => {
 
     const priced = await resolveCart(ids, { pkrPricing: displayCurrency === "PKR" });
 
-    // A supervisee account can't also be a supervisor, so it can't buy a
-    // supervisor plan — they'd pay and get nothing. Checked before any order
-    // or PayFast token exists.
-    if (priced.items.some((i) => isPlanId(i.id)) && req.user.portalRole === "supervisee") {
-      return res.status(400).json({
-        error:
-          "This is a supervisee account. Supervision plans are for supervisors — please use a different account.",
-      });
+    // A plan is bought on its own, and only after quote() has checked who's
+    // buying (a supervisee would pay and get nothing) and the Starter limit.
+    // The quote is snapshotted on the order; the callback recomputes it at
+    // payment time from the same snapshot price.
+    let planSnapshot = null;
+    const planItems = priced.items.filter((i) => passForItem(i));
+    if (planItems.length) {
+      if (priced.items.length > 1) {
+        return res.status(400).json({ error: "A supervision plan is bought on its own." });
+      }
+      const pass = passForItem(planItems[0]);
+      const quoted = await quote(req.user, pass);
+      if (!quoted.ok) return res.status(quoted.status).json({ error: quoted.message });
+      planSnapshot = {
+        planKey: pass.planKey,
+        period: pass.period,
+        priceEur: pass.priceEur,
+        periodDays: pass.days,
+        kind: quoted.kind,
+        quotedExpiresAt: quoted.expiresAt,
+      };
     }
 
     // Don't let someone re-buy what they already own. Plans are exempt:
     // buying one again is a renewal, and it adds time rather than duplicating.
     const owned = new Set((req.user.paidItems || []).map((i) => i.id));
-    const duplicates = priced.items.filter((i) => !isPlanId(i.id) && owned.has(i.id));
+    const duplicates = priced.items.filter((i) => !passForItem(i) && owned.has(i.id));
     if (duplicates.length) {
       return res.status(400).json({
         error: `Already purchased: ${duplicates.map((d) => d.title).join(", ")}`,
@@ -85,6 +98,7 @@ router.post("/initiate", ensureAuth, async (req, res) => {
         displayAmount: displayAmount ?? priced.eurTotal,
       },
       customer: { email: req.user.email },
+      plan: planSnapshot,
       status: "pending",
     });
 
@@ -127,6 +141,38 @@ router.post("/initiate", ensureAuth, async (req, res) => {
 });
 
 /**
+ * Add a paid pass to the buyer's account. Priced from the order's snapshot,
+ * never today's config. The write is conditional on the expiry it was
+ * computed from, so two different orders paid at once for the same account
+ * can't overwrite each other — the second retries on fresh data.
+ */
+async function applyPlanOrder(order) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const user = await User.findById(order.userId);
+    if (!user) throw new Error(`Order ${order.basketId} has no user`);
+    const before = user.supervisionPlan?.expiresAt || null;
+
+    for (const item of order.items) {
+      const pass = passForItem(item);
+      if (!pass) continue;
+      const snap = order.plan;
+      const paid = snap
+        ? { planKey: snap.planKey, period: snap.period, priceEur: snap.priceEur, days: snap.periodDays }
+        : pass; // an order started before snapshots existed: its item price
+      applyPlan(user, paid);
+    }
+
+    const { supervisionPlan, portalRole } = user.toObject();
+    const result = await User.updateOne(
+      { _id: user._id, "supervisionPlan.expiresAt": before },
+      { $set: { supervisionPlan, portalRole } },
+    );
+    if (result.modifiedCount === 1) return user;
+  }
+  throw new Error(`Order ${order.basketId}: the account kept changing; plan not applied`);
+}
+
+/**
  * PayFast callback — hit twice for one payment: once server-to-server (IPN)
  * and once via the customer's browser (redirect=Y). Both are verified; the
  * first to arrive does the work and the second is a no-op.
@@ -157,14 +203,21 @@ async function handleCallback(req, res) {
   }
 
   try {
-    const order = await Order.findOne({ basketId });
-    if (!order) return fail("Unknown order", 404);
-
-    // Idempotency: the IPN and the redirect describe the same payment.
-    if (order.status !== "pending") {
+    // Idempotency: the IPN and the redirect describe the same payment, and
+    // can arrive at the same moment. Claiming the order in one atomic step
+    // means exactly one of them applies it; the other finds it taken. An
+    // order left "processing" by a crash is fixed by hand, never re-applied.
+    const order = await Order.findOneAndUpdate(
+      { basketId, status: "pending" },
+      { $set: { status: "processing" } },
+      { new: true },
+    );
+    if (!order) {
+      const existing = await Order.findOne({ basketId }).select("status").lean();
+      if (!existing) return fail("Unknown order", 404);
       if (isRedirect) {
         return res.redirect(
-          `${frontendBase()}/${order.status === "paid" ? "success" : "error"}`,
+          `${frontendBase()}/${existing.status === "failed" ? "error" : "success"}`,
         );
       }
       return res.status(200).send("Already processed");
@@ -186,33 +239,37 @@ async function handleCallback(req, res) {
         : res.status(200).send("OK");
     }
 
-    // Verified success — grant the goods.
-    const user = await User.findById(order.userId);
-    if (!user) return fail("Order has no user", 404);
+    // Verified success — grant the goods. Plans are time on the account, not
+    // an owned item (paidItems would also fall to the one-year cleanup cron
+    // in Routes/gateway.js), and are always bought on their own.
+    const isPlanOrder = order.items.some((item) => passForItem(item));
+    let user;
+    let granted = [];
+    if (isPlanOrder) {
+      user = await applyPlanOrder(order);
+      if (order.plan) order.plan.appliedExpiresAt = user.supervisionPlan.expiresAt;
+    } else {
+      user = await User.findById(order.userId);
+      if (!user) return fail("Order has no user", 404);
 
-    const owned = new Set((user.paidItems || []).map((i) => i.id));
-    // A bundle's own id goes into paidItems like any other item, but it
-    // should also unlock everything it bundles — otherwise the buyer paid
-    // for the bundle and can't actually open anything inside it.
-    const idsToGrant = new Set();
-    let plansBought = 0;
-    for (const item of order.items) {
-      // Plans are time on the account, not an owned item: paidItems would
-      // also fall to the one-year cleanup cron (Routes/gateway.js).
-      if (isPlanId(item.id)) {
-        extendPlan(user, item.id);
-        plansBought += 1;
-        continue;
+      const owned = new Set((user.paidItems || []).map((i) => i.id));
+      // A bundle's own id goes into paidItems like any other item, but it
+      // should also unlock everything it bundles — otherwise the buyer paid
+      // for the bundle and can't actually open anything inside it.
+      const idsToGrant = new Set();
+      for (const item of order.items) {
+        idsToGrant.add(item.id);
+        for (const bundledId of BUNDLE_CONTENTS[item.id] || []) idsToGrant.add(bundledId);
       }
-      idsToGrant.add(item.id);
-      for (const bundledId of BUNDLE_CONTENTS[item.id] || []) idsToGrant.add(bundledId);
-    }
-    const granted = [...idsToGrant]
-      .filter((id) => !owned.has(id))
-      .map((id) => ({ id, purchasedAt: new Date() }));
+      granted = [...idsToGrant]
+        .filter((id) => !owned.has(id))
+        .map((id) => ({ id, purchasedAt: new Date() }));
 
-    if (granted.length) user.paidItems.push(...granted);
-    if (granted.length || plansBought) await user.save();
+      if (granted.length) {
+        user.paidItems.push(...granted);
+        await user.save();
+      }
+    }
 
     order.status = "paid";
     order.paidAt = new Date();
@@ -220,7 +277,9 @@ async function handleCallback(req, res) {
 
     console.log(
       `[PAYFAST] ${basketId} PAID user=${user.email} txn=${transactionId} granted=${granted.length}${
-        plansBought ? ` plan=${user.supervisionPlan.plan} until=${user.supervisionPlan.expiresAt.toISOString()}` : ""
+        isPlanOrder
+          ? ` plan=${user.supervisionPlan.planKey} until=${user.supervisionPlan.expiresAt.toISOString()}`
+          : ""
       }`,
     );
 

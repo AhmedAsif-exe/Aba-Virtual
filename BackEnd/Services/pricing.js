@@ -8,6 +8,7 @@
 
 const { createClient } = require("@sanity/client");
 const { SUPERVISION_PLANS } = require("./supervisionPlans");
+const { parseCheckoutItemId, PLAN_NAMES } = require("../Config/plans");
 
 const sanity = createClient({
   projectId: process.env.SANITY_PROJECT_ID,
@@ -120,6 +121,14 @@ const FIXED_PKR_PRICES = {
 const pkrFromEur = (eur, eurToPkr) => Math.round((eur * eurToPkr) / 50) * 50;
 
 function priceStaticItem(id) {
+  const pass = parseCheckoutItemId(id);
+  if (pass) {
+    return {
+      title: `Supervision Portal — ${PLAN_NAMES[pass.planKey]} (${pass.days} days)`,
+      priceEur: pass.priceEur,
+    };
+  }
+  // Legacy plan ids, until the new pricing page replaces the old one.
   const plan = SUPERVISION_PLANS[id];
   if (plan) return { title: plan.title, priceEur: plan.priceEur };
 

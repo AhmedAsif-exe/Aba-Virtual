@@ -16,6 +16,19 @@ const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES, ASSIGNMENT_KINDS } = Supervisi
 const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
 const { can } = require("../Services/entitlements");
+const { quote } = require("../Services/planPurchase");
+const {
+  LIMITS,
+  PERIOD_DAYS,
+  PLAN_NAMES,
+  PLAN_ORDER,
+  PURCHASABLE,
+  checkoutItemId,
+  parseCheckoutItemId,
+  pricesEur,
+  showClinicPlan,
+  yearlySavings,
+} = require("../Config/plans");
 const {
   sendPaymentReminder,
   sendShareInvite,
@@ -978,6 +991,65 @@ function generateTempPassword() {
 }
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/* ------------------------------------------------------------------ *
+ * Plans — what the pricing page shows and what checkout will do
+ * ------------------------------------------------------------------ */
+
+/** Public: plans, prices and savings, all from Config/plans.js. */
+router.get("/plans", (req, res) => {
+  const prices = pricesEur();
+  const plans = PLAN_ORDER.filter((key) => key !== "clinic" || showClinicPlan()).map((key) => {
+    const max = LIMITS[key]?.max_active_supervisees;
+    return {
+      key,
+      name: PLAN_NAMES[key],
+      checkout: PURCHASABLE.includes(key) ? "payfast" : key === "supervisee" ? "invite" : "manual",
+      featured: key === "professional",
+      prices: prices[key]
+        ? Object.fromEntries(
+            Object.entries(PERIOD_DAYS).map(([period, days]) => [
+              period,
+              { priceEur: prices[key][period], days },
+            ]),
+          )
+        : null,
+      yearly: prices[key] ? yearlySavings(key) : null,
+      // null means unlimited (JSON has no Infinity).
+      maxActiveSupervisees: max === undefined ? null : Number.isFinite(max) ? max : null,
+    };
+  });
+  res.json({ plans, showClinicPlan: showClinicPlan() });
+});
+
+/**
+ * What buying a pass would do for the signed-in user — renewal, change or
+ * new, the days credited and the new end date — shown before payment
+ * (§4.3). Nothing is changed.
+ */
+router.get("/plans/quote", ensureAuth, async (req, res, next) => {
+  try {
+    const pass = parseCheckoutItemId(`plan:${req.query.plan}:${req.query.period}`);
+    if (!pass) return res.status(400).json({ message: "Choose a plan and a period" });
+
+    const quoted = await quote(req.user, pass);
+    if (!quoted.ok) return res.status(quoted.status).json({ message: quoted.message });
+
+    res.json({
+      itemId: checkoutItemId(pass.planKey, pass.period),
+      planKey: pass.planKey,
+      planName: PLAN_NAMES[pass.planKey],
+      period: pass.period,
+      priceEur: pass.priceEur,
+      days: pass.days,
+      kind: quoted.kind,
+      creditedDays: quoted.creditedDays,
+      expiresAt: quoted.expiresAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /* ------------------------------------------------------------------ *
  * Supervisee routes — no id in the path, scope comes from the session
