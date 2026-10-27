@@ -139,4 +139,32 @@ function sendSuperviseeInvite({ supervisee, supervisor, tempPassword }) {
   });
 }
 
-module.exports = { sendPaymentReminder, sendShareInvite, sendSuperviseeInvite };
+/**
+ * One-time email to Yearly customers after the price cut (§5). The sentence
+ * is the spec's, filled from the migration's own numbers.
+ */
+function migrationCreditEmail({ user, oldPriceEur, newPriceEur, creditDays, newEndDate }) {
+  return {
+    to: user.email,
+    subject: `We've added ${creditDays} days to your supervision portal plan`,
+    html: layout({
+      heading: "Extra days on your plan",
+      paragraphs: [
+        `Hi ${escapeHtml(user.name || "there")},`,
+        `We've lowered the yearly Professional price to €${newPriceEur}. As you paid €${oldPriceEur}, we've added ${creditDays} days to your access. Your new end date is ${escapeHtml(newEndDate)}.`,
+      ],
+      buttonLabel: "Open the supervision portal",
+      buttonUrl: `${SITE_URL}/portal/supervisees`,
+    }),
+  };
+}
+
+const sendMigrationCreditEmail = (details) => send(migrationCreditEmail(details));
+
+module.exports = {
+  sendPaymentReminder,
+  sendShareInvite,
+  sendSuperviseeInvite,
+  migrationCreditEmail,
+  sendMigrationCreditEmail,
+};
