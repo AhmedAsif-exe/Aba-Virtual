@@ -330,7 +330,7 @@ export default function SupervisionPlans() {
 }
 
 const buttonBase =
-  "inline-flex min-h-[48px] items-center justify-center rounded-lg px-4 py-2 text-center text-[18px] font-bold leading-tight no-underline transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-teal-600 focus-visible:ring-offset-2";
+  "inline-flex min-h-[48px] items-center justify-center rounded-lg px-4 py-2 text-center text-[18px] font-bold leading-tight lining-nums no-underline transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-teal-600 focus-visible:ring-offset-2";
 // The one primary call to action: orange-500 with white 18px bold text.
 const primaryButton = `${buttonBase} bg-ds-orange-500 text-white shadow-md hover:bg-ds-orange-600 hover:shadow-lg`;
 const secondaryButton = `${buttonBase} bg-ds-blue-700 text-white hover:bg-ds-blue-600`;

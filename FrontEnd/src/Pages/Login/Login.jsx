@@ -22,6 +22,7 @@ import { BenefitList } from "Pages/Home/AccountBenefits";
 const destinationLabel = (from) => {
   if (!from) return null;
   if (from === "/supervision-plans") return "choose a supervision portal plan";
+  if (from.startsWith("/checkout")) return "continue to checkout";
   if (from.startsWith("/portal")) return "open the supervision portal";
   if (from === "/account") return "open your account";
   if (from.startsWith("/resources")) return "continue with that resource";

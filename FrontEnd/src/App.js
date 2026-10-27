@@ -37,6 +37,7 @@ import BoardsAdmin from "Pages/Portal/BoardsAdmin";
 import SupervisionPlans from "Pages/Portal/SupervisionPlans";
 import { SharedRoster, SharedSupervisee } from "Pages/Portal/SharedWithMe";
 import OrganisationsAdmin from "Pages/Admin/OrganisationsAdmin";
+import Checkout from "Pages/Portal/Checkout";
 
 // Domain-based game imports (Domain 1 moved)
 import { ReceptiveFunctionGame } from "Pages/Games/Domain/1/Game1";
@@ -174,6 +175,9 @@ function App() {
                 offer; the API enforces the same rules independently, so a
                 hand-typed URL gets a 403, not someone else's data. */}
             <Route path="/portal/set-password" element={<><Seo title="Set password" noindex /><SetPassword /></>} />
+            {/* Plan checkout: shows the new end date, then PayFast. Sends
+                signed-out visitors to log in with the plan kept. */}
+            <Route path="/checkout" element={<><Seo title="Checkout" noindex /><Checkout /></>} />
             {/* Internal ABA Virtual screen; /admin checks siteAdmin server-side. */}
             <Route
               path="/admin/organisations"
