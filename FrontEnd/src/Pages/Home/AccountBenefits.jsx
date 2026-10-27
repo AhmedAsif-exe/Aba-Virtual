@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { useProjectContext } from "Utils/Context";
 
 // What an account actually gives you today (see the handover doc, "Features
 // & modules" and "Admin access & user roles").
@@ -26,6 +27,10 @@ export function BenefitList({ dark = false }) {
 }
 
 export default function AccountBenefits() {
+  // A sign-up pitch to someone already signed in reads as "your login failed".
+  const { loggedIn } = useProjectContext();
+  if (loggedIn) return null;
+
   return (
     <section aria-labelledby="account-heading" className="py-20 t:py-24">
       <div className="section">

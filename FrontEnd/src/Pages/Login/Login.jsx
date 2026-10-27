@@ -27,6 +27,19 @@ const destinationLabel = (from) => {
   if (from.startsWith("/resources")) return "continue with that resource";
   return "continue";
 };
+
+// Same-site paths only: "//host" or "/\host" would be an open redirect.
+const isSafePath = (p) =>
+  typeof p === "string" && p.startsWith("/") && !p.startsWith("//") && !p.startsWith("/\\");
+
+// Where to land after logging in: the page they were heading to, else their
+// own portal home, else the home page. Mirrors landingPath in Routes/auth.js.
+const landingPath = (user, from) => {
+  if (isSafePath(from)) return from;
+  if (user?.portalRole === "supervisor") return "/portal/supervisees";
+  if (user?.portalRole === "supervisee") return "/portal";
+  return "/";
+};
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
@@ -137,13 +150,9 @@ export default function Login(props) {
 
     try {
       const endpoint = isLogin ? "/auth/login" : "/auth/register";
-      await api.post(endpoint, formData);
+      const res = await api.post(endpoint, formData);
       window.scrollTo(0, 0);
-      // Back to where they came from (e.g. the plans page), same-site only —
-      // a "//host" or absolute URL here would be an open redirect.
-      const from = location.state?.from;
-      window.location.href =
-        typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : "/";
+      window.location.href = landingPath(res.data?.user, location.state?.from);
       toast.success(isLogin ? "Login successful!" : "Registration successful!");
     } catch (error) {
       const message = error.response?.data?.message || "An error occurred";
@@ -152,7 +161,9 @@ export default function Login(props) {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${process.env.REACT_APP_BACKEND_URI}auth/google`;
+    const from = location.state?.from;
+    const query = isSafePath(from) ? `?from=${encodeURIComponent(from)}` : "";
+    window.location.href = `${process.env.REACT_APP_BACKEND_URI}auth/google${query}`;
   };
 
   const from = location.state?.from;

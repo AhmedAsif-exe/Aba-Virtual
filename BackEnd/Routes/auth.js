@@ -18,6 +18,41 @@ function backendBase() {
   );
 }
 
+function frontendBase() {
+  return (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/+$/, "");
+}
+
+// Same-site paths only: "//host" or "/\host" would be an open redirect.
+const isSafePath = (p) =>
+  typeof p === "string" && p.startsWith("/") && !p.startsWith("//") && !p.startsWith("/\\");
+
+// Where to land after logging in: the page they were heading to, else their
+// own portal home, else the home page.
+function landingPath(user, from) {
+  if (isSafePath(from)) return from;
+  if (user?.portalRole === "supervisor") return "/portal/supervisees";
+  if (user?.portalRole === "supervisee") return "/portal";
+  return "/";
+}
+
+// Passport 0.7 swaps the session on login, so the Google round trip carries
+// the destination in its own short-lived cookie instead.
+const RETURN_COOKIE = "loginReturnTo";
+const RETURN_COOKIE_OPTS = { httpOnly: true, sameSite: "lax", path: "/" };
+
+function readCookie(req, name) {
+  const pair = String(req.headers.cookie || "")
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${name}=`));
+  if (!pair) return null;
+  try {
+    return decodeURIComponent(pair.slice(name.length + 1));
+  } catch {
+    return null;
+  }
+}
+
 const AVATAR_DIR = path.join(__dirname, "..", "uploads", "avatars");
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
@@ -88,6 +123,14 @@ router.post("/login", (req, res, next) => {
 // Google OAuth
 router.get(
   "/google",
+  (req, res, next) => {
+    if (isSafePath(req.query.from)) {
+      res.cookie(RETURN_COOKIE, req.query.from, { ...RETURN_COOKIE_OPTS, maxAge: 10 * 60 * 1000 });
+    } else {
+      res.clearCookie(RETURN_COOKIE, RETURN_COOKIE_OPTS);
+    }
+    next();
+  },
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
@@ -95,7 +138,9 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/" }),
   (req, res) => {
-    res.redirect(process.env.FRONTEND_URL);
+    const from = readCookie(req, RETURN_COOKIE);
+    res.clearCookie(RETURN_COOKIE, RETURN_COOKIE_OPTS);
+    res.redirect(`${frontendBase()}${landingPath(req.user, from)}`);
   }
 );
 

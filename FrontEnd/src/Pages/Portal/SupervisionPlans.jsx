@@ -232,6 +232,7 @@ export default function SupervisionPlans() {
                 </ul>
                 <Link
                   to={isSupervisee ? "/portal" : "/login"}
+                  state={isSupervisee ? undefined : { from: "/portal" }}
                   className="btn mt-8 border border-sea-200 bg-sea-50 text-sea-700 hover:-translate-y-0.5 hover:bg-sea-100"
                 >
                   {isSupervisee ? "Open my supervision" : "Log in with your invite"}
