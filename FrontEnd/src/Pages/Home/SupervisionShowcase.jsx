@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Link } from "react-router-dom";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -5,6 +6,7 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import ShareIcon from "@mui/icons-material/Share";
+import api from "axiosInstance";
 import { useProjectContext, formatAmount } from "Utils/Context";
 import PortalPreview from "Pages/Portal/PortalPreview";
 
@@ -49,9 +51,23 @@ const STEPS = [
 ];
 
 export default function SupervisionShowcase() {
-  const { user, currency, priceOf } = useProjectContext();
-  const monthly = priceOf({ id: "supervision-monthly", price: 30 });
+  const { user } = useProjectContext();
   const role = user?.portalRole;
+  // The cheapest 30-day pass, from the plan config (GET /supervision/plans).
+  const [fromPrice, setFromPrice] = React.useState(null);
+  React.useEffect(() => {
+    let alive = true;
+    api
+      .get("/supervision/plans")
+      .then((res) => {
+        const prices = res.data.plans.map((p) => p.prices?.monthly?.priceEur).filter((n) => n > 0);
+        if (alive && prices.length) setFromPrice(Math.min(...prices));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <section
@@ -130,7 +146,7 @@ export default function SupervisionShowcase() {
               )}
             </div>
             <p className="mt-5 mb-0 text-sm text-sea-100/60">
-              {monthly != null ? `From ${formatAmount(monthly, currency)} a month for supervisors` : "Monthly or yearly plans for supervisors"}
+              {fromPrice != null ? `Supervisor plans from ${formatAmount(fromPrice, "EUR")} for 30 days` : "Monthly or yearly plans for supervisors"}
               {" · "}supervisees join free.
             </p>
           </div>
