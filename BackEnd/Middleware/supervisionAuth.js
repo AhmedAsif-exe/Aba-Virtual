@@ -3,6 +3,7 @@ const SuperviseeProfile = require("../Schema/SuperviseeProfile");
 const User = require("../Schema/User");
 const { can, canWrite, limit, effectivePlan } = require("../Services/entitlements");
 const { PLAN_NAMES } = require("../Config/plans");
+const { planContextFor } = require("../Services/planContext");
 
 /**
  * Access control for the supervision portal.
@@ -56,13 +57,17 @@ function ensureSupervisor(req, res, next) {
  * pass makes the account read-only; nothing is deleted. 402 rather than 403
  * so the frontend can tell "renew" apart from "not allowed".
  */
-function requireActivePass(req, res, next) {
-  if (!canWrite(req.user)) {
-    return res
-      .status(402)
-      .json({ message: "Your supervision plan has ended. Renew to continue.", planExpired: true });
+async function requireActivePass(req, res, next) {
+  try {
+    if (!canWrite(req.user, await planContextFor(req.user._id))) {
+      return res
+        .status(402)
+        .json({ message: "Your supervision plan has ended. Renew to continue.", planExpired: true });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
   }
-  return next();
 }
 
 // Approved wording (2026-10-27); the page adds an upgrade button.
@@ -73,11 +78,15 @@ const NOT_IN_PLAN = "This feature isn't included in your plan. Upgrade to use it
  * Unaffected by expiry: a lapsed plan keeps its features for reading.
  */
 function requireFeature(feature) {
-  return function featureGate(req, res, next) {
-    if (!can(req.user, feature)) {
-      return res.status(403).json({ message: NOT_IN_PLAN, upgradeRequired: feature });
+  return async function featureGate(req, res, next) {
+    try {
+      if (!can(req.user, feature, await planContextFor(req.user._id))) {
+        return res.status(403).json({ message: NOT_IN_PLAN, upgradeRequired: feature });
+      }
+      return next();
+    } catch (err) {
+      return next(err);
     }
-    return next();
   };
 }
 
@@ -92,14 +101,15 @@ const limitMessage = (planKey, max) =>
  */
 async function requireSlot(req, res, next) {
   try {
-    const max = limit(req.user, "max_active_supervisees");
+    const ctx = await planContextFor(req.user._id);
+    const max = limit(req.user, "max_active_supervisees", ctx);
     if (Number.isFinite(max)) {
       const active = await SuperviseeProfile.countDocuments({
         supervisorId: req.user._id,
         archivedAt: null,
       });
       if (active >= max) {
-        const { planKey } = effectivePlan(req.user);
+        const { planKey } = effectivePlan(req.user, ctx);
         return res.status(403).json({
           message: limitMessage(planKey, max),
           upgradeRequired: "max_active_supervisees",
@@ -124,7 +134,7 @@ async function requireSupervisorActive(req, res, next) {
     const supervisor = await User.findById(req.profile.supervisorId).select(
       "email supervisionPlan",
     );
-    if (!supervisor || !canWrite(supervisor)) {
+    if (!supervisor || !canWrite(supervisor, await planContextFor(supervisor._id))) {
       return res.status(402).json({ message: SUPERVISOR_PLAN_ENDED, supervisorPlanEnded: true });
     }
     return next();

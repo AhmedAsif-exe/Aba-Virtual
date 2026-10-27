@@ -32,18 +32,27 @@ const isComplimentary = (user) =>
  *            seatLimit: number|null}}
  */
 function effectivePlan(user, { organisation = null, now = new Date() } = {}) {
-  if (organisation) {
-    const expiresAt = organisation.expiresAt ? new Date(organisation.expiresAt) : null;
-    return {
-      planKey: organisation.planKey,
-      expiresAt,
-      active: Boolean(expiresAt && expiresAt > now),
-      complimentary: false,
-      source: "organisation",
-      seatLimit: organisation.seatLimit ?? null,
-    };
-  }
+  const own = ownPlan(user, now);
+  if (!organisation) return own;
 
+  // A member's own pass is kept separately (§6.3): while the organisation's
+  // pass is live it applies; once it has ended, a live pass of their own
+  // still does; otherwise they're read-only on the organisation's plan (§6.6).
+  const expiresAt = organisation.expiresAt ? new Date(organisation.expiresAt) : null;
+  const orgPlan = {
+    planKey: organisation.planKey,
+    expiresAt,
+    active: Boolean(expiresAt && expiresAt > now),
+    complimentary: false,
+    source: "organisation",
+    seatLimit: organisation.seatLimit ?? null,
+  };
+  if (orgPlan.active || !own.active) return orgPlan;
+  return own;
+}
+
+/** The user's own pass, ignoring any organisation. */
+function ownPlan(user, now) {
   const stored = user?.supervisionPlan || {};
   const planKey = stored.planKey || LEGACY_PLAN_KEYS[stored.plan] || null;
 

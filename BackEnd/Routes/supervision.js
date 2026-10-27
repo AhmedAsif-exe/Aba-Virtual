@@ -16,6 +16,7 @@ const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES, ASSIGNMENT_KINDS } = Supervisi
 const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
 const { can } = require("../Services/entitlements");
+const { planContextFor } = require("../Services/planContext");
 const { quote } = require("../Services/planPurchase");
 const {
   LIMITS,
@@ -730,7 +731,7 @@ async function hidePaymentsUnlessTracked(req, res, next) {
     const supervisor = await User.findById(req.profile.supervisorId).select(
       "email supervisionPlan",
     );
-    if (!supervisor || !can(supervisor, "payment_tracking")) {
+    if (!supervisor || !can(supervisor, "payment_tracking", await planContextFor(supervisor._id))) {
       return res.json({ payments: [], currentMonth: currentMonthKey() });
     }
     next();
@@ -892,14 +893,15 @@ async function listSharedWithMe(req, res, next) {
     const supervisors = await User.find({ _id: { $in: shares.map((s) => s.supervisorId) } })
       .select("name email pfp supervisionPlan")
       .lean();
+    const contexts = await Promise.all(supervisors.map((u) => planContextFor(u._id)));
     res.json({
-      supervisors: supervisors.map((u) => ({
+      supervisors: supervisors.map((u, i) => ({
         _id: u._id,
         name: u.name,
         email: u.email,
         pfp: u.pfp,
         // Open while the owner's plan includes sharing, ended pass or not.
-        available: can(u, "view_only_sharing"),
+        available: can(u, "view_only_sharing", contexts[i]),
       })),
     });
   } catch (err) {
@@ -931,7 +933,7 @@ async function ensureViewer(req, res, next) {
       "name email supervisionPlan portalRole",
     );
     if (!supervisor || supervisor.portalRole !== "supervisor") return deny();
-    if (!can(supervisor, "view_only_sharing")) {
+    if (!can(supervisor, "view_only_sharing", await planContextFor(supervisor._id))) {
       return res.status(403).json({ message: "This shared portal isn't available right now" });
     }
 
@@ -1113,7 +1115,7 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
     // This month's payment and any unpaid months, for the green/red marker.
     // Left empty on plans without payment tracking; the records are kept.
     const month = currentMonthKey();
-    const payments = can(req.user, "payment_tracking")
+    const payments = can(req.user, "payment_tracking", await planContextFor(req.user._id))
       ? await SupervisionPayment.find({
           superviseeId: { $in: profiles.map((p) => p._id) },
           $or: [{ month }, { status: "unpaid" }],

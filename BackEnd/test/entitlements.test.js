@@ -78,7 +78,21 @@ describe("legacy and complimentary accounts", () => {
   });
 });
 
-describe("organisation plans", () => {
+describe("organisation plans (§6.3, §6.6)", () => {
+  test("an ended organisation pass makes members read-only", () => {
+    const u = { email: "m@example.com" };
+    const organisation = { planKey: "custom", expiresAt: past, seatLimit: 8 };
+    assert.strictEqual(canWrite(u, { ...ctx, organisation }), false);
+    assert.strictEqual(can(u, "payment_tracking", { ...ctx, organisation }), true);
+  });
+
+  test("a member's own live pass still counts once the organisation's has ended", () => {
+    const u = supervisor("starter", future);
+    const organisation = { planKey: "custom", expiresAt: past, seatLimit: 8 };
+    assert.strictEqual(effectivePlan(u, { ...ctx, organisation }).planKey, "starter");
+    assert.strictEqual(canWrite(u, { ...ctx, organisation }), true);
+  });
+
   test("members follow the organisation's plan, expiry and seat limit", () => {
     const u = supervisor("starter", past);
     const organisation = { planKey: "custom", expiresAt: future, seatLimit: 12 };
