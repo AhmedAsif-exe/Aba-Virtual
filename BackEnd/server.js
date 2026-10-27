@@ -32,7 +32,10 @@ mongoose
   })
   .then(() => console.log("Mongo DB connected successfully"));
 
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+// Content-Disposition is exposed so CSV downloads keep the server's file name.
+app.use(
+  cors({ origin: process.env.FRONTEND_URL, credentials: true, exposedHeaders: ["Content-Disposition"] }),
+);
 // app.use(
 //   "/gateway/webhook",
 //   express.raw({ type: "application/json" }),
