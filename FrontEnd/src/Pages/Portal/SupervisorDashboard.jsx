@@ -19,9 +19,15 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import { toast } from "react-toastify";
 
-import { useProjectContext } from "Utils/Context";
-
 import { PageHeading, PortalContainer, PortalLoading } from "./PortalShared";
+import {
+  NOT_IN_PLAN,
+  SupervisorPlanBanner,
+  UpgradeDialog,
+  UpgradeNotice,
+  limitMessage,
+  usePlan,
+} from "./PlanNotices";
 import {
   apiError,
   boardsApi,
@@ -40,10 +46,9 @@ export default function SupervisorDashboard() {
   const [loading, setLoading] = React.useState(true);
   const [addOpen, setAddOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
-  const { user } = useProjectContext();
-  const plan = user?.supervisionPlan;
-  // Plans don't auto-renew, so the reminder is the only nudge they get.
-  const renewSoon = plan?.active && !plan.complimentary && plan.daysLeft <= 7;
+  const [upgrade, setUpgrade] = React.useState(null);
+  const [exporting, setExporting] = React.useState(false);
+  const { plan, canWrite, can, maxActiveSupervisees } = usePlan();
 
   const load = React.useCallback(async () => {
     try {
@@ -62,39 +67,90 @@ export default function SupervisorDashboard() {
 
   if (loading) return <PortalLoading />;
 
+  // "Active" = not archived (§4.5); only active supervisees use a slot.
+  const active = rows.filter((r) => !r.archivedAt);
+  const archived = rows.filter((r) => r.archivedAt);
+  const atLimit = maxActiveSupervisees != null && active.length >= maxActiveSupervisees;
+
+  const handleAdd = () => {
+    if (atLimit) setUpgrade(limitMessage(plan.planKey, maxActiveSupervisees));
+    else setAddOpen(true);
+  };
+  const handleShare = () => {
+    if (can("view_only_sharing")) setShareOpen(true);
+    else setUpgrade(NOT_IN_PLAN);
+  };
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await supervisorApi.exportAll();
+    } catch (err) {
+      toast.error(apiError(err, "Could not export"));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Archiving is allowed while read-only, so a lapsed supervisor can get down
+  // to a smaller plan's limit before renewing; restoring is not.
+  const archive = async (row) => {
+    const ok = window.confirm(
+      `Archive ${row.name}? They keep all their records and can still view them, but can't log hours. You can restore them later if a slot is free.`,
+    );
+    if (!ok) return;
+    try {
+      await supervisorApi.archive(row._id);
+      toast.success(`${row.name} archived`);
+      load();
+    } catch (err) {
+      toast.error(apiError(err, "Could not archive"));
+    }
+  };
+  const restore = async (row) => {
+    if (atLimit) {
+      setUpgrade(limitMessage(plan.planKey, maxActiveSupervisees));
+      return;
+    }
+    try {
+      await supervisorApi.restore(row._id);
+      toast.success(`${row.name} restored`);
+      load();
+    } catch (err) {
+      toast.error(apiError(err, "Could not restore"));
+    }
+  };
+
   return (
     <PortalContainer>
       <PageHeading
         title="Supervisees"
-        subtitle={`${rows.length} ${rows.length === 1 ? "person" : "people"} under supervision`}
+        subtitle={
+          maxActiveSupervisees != null
+            ? `${active.length} of ${maxActiveSupervisees} active supervisees on your plan`
+            : `${active.length} ${active.length === 1 ? "person" : "people"} under supervision`
+        }
         action={
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => setShareOpen(true)}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="outlined" onClick={handleExport} disabled={exporting || rows.length === 0}>
+              Export all (CSV)
+            </Button>
+            <Button variant="outlined" onClick={handleShare}>
               Share access
             </Button>
             <Button variant="outlined" onClick={() => navigate("/portal/boards")}>
               Manage boards
             </Button>
-            <Button variant="contained" onClick={() => setAddOpen(true)}>
+            <Button variant="contained" onClick={handleAdd} disabled={!canWrite}>
               Add supervisee
             </Button>
           </Stack>
         }
       />
 
-      {renewSoon && (
-        <Alert
-          severity="warning"
-          action={
-            <Button color="inherit" onClick={() => navigate("/supervision-plans")}>
-              Renew
-            </Button>
-          }
-        >
-          Your plan ends on {formatDate(plan.expiresAt)} ({plan.daysLeft}{" "}
-          {plan.daysLeft === 1 ? "day" : "days"} left). Renew to keep access — any time left is
-          added on.
-        </Alert>
+      <SupervisorPlanBanner />
+
+      {canWrite && atLimit && (
+        <UpgradeNotice message={limitMessage(plan.planKey, maxActiveSupervisees)} />
       )}
 
       {rows.length === 0 && (
@@ -105,14 +161,47 @@ export default function SupervisorDashboard() {
       )}
 
       <Box sx={{ display: "grid", gap: 2 }}>
-        {rows.map((row) => (
+        {active.map((row) => (
           <SuperviseeCard
             key={row._id}
             row={row}
             onOpen={() => navigate(`/portal/supervisees/${row._id}`)}
+            action={
+              <Button size="small" onClick={() => archive(row)}>
+                Archive
+              </Button>
+            }
           />
         ))}
       </Box>
+
+      {archived.length > 0 && (
+        <>
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Archived ({archived.length})
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
+            Archived supervisees keep all their records and can still view them. They don't count
+            towards your plan's limit.
+          </Typography>
+          <Box sx={{ display: "grid", gap: 2 }}>
+            {archived.map((row) => (
+              <SuperviseeCard
+                key={row._id}
+                row={row}
+                onOpen={() => navigate(`/portal/supervisees/${row._id}`)}
+                action={
+                  <Button size="small" onClick={() => restore(row)} disabled={!canWrite}>
+                    Restore
+                  </Button>
+                }
+              />
+            ))}
+          </Box>
+        </>
+      )}
+
+      {upgrade && <UpgradeDialog message={upgrade} onClose={() => setUpgrade(null)} />}
 
       {shareOpen && <ShareDialog onClose={() => setShareOpen(false)} />}
 
@@ -130,8 +219,9 @@ export default function SupervisorDashboard() {
 }
 
 /** One roster row. Shared with the read-only view (SharedWithMe.jsx), which
- *  gets no `payment` on its rows and so shows no payment marker. */
-export function SuperviseeCard({ row, onOpen }) {
+ *  gets no `payment` on its rows and so shows no payment marker, and passes
+ *  no `action` (the supervisor's Archive / Restore button). */
+export function SuperviseeCard({ row, onOpen, action }) {
   const { summary } = row;
   const pct = summary.requiredTotalHours
     ? Math.min((summary.totalHoursWorked / summary.requiredTotalHours) * 100, 100)
@@ -173,6 +263,8 @@ export function SuperviseeCard({ row, onOpen }) {
             value={summary.lastMeetingDate ? formatDate(summary.lastMeetingDate) : "—"}
           />
         </Box>
+        {/* Its own click: the card itself opens the supervisee. */}
+        {action && <Box onClick={(e) => e.stopPropagation()}>{action}</Box>}
       </Box>
 
       {summary.requiredTotalHours > 0 && (

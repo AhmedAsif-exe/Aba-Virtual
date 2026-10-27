@@ -1,5 +1,7 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
 import Card from "@mui/material/Card";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
@@ -12,6 +14,7 @@ import PaymentsSection from "./PaymentsSection";
 import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
 import { apiError, formatDate, formatHours, superviseeApi } from "./portalApi";
+import { SuperviseeLoggingBanner } from "./PlanNotices";
 
 /**
  * A supervisee's own dashboard.
@@ -69,6 +72,23 @@ export default function SuperviseeDashboard() {
   if (!data) return null;
 
   const { profile, summary } = data;
+  // Closed while archived or while the supervisor's plan has ended; the
+  // server says which (and refuses the writes either way).
+  const loggingOpen = data.logging?.open !== false;
+  const repliesNote =
+    data.logging?.reason === "supervisor_plan_ended"
+      ? "Replies to assignments are paused until your supervisor renews their plan."
+      : data.logging?.reason === "archived"
+        ? "Replies to assignments are closed while your record is archived."
+        : null;
+
+  const handleExport = async () => {
+    try {
+      await superviseeApi.exportRecords();
+    } catch (err) {
+      toast.error(apiError(err, "Could not download your records"));
+    }
+  };
 
   return (
     <PortalContainer>
@@ -78,14 +98,21 @@ export default function SuperviseeDashboard() {
           profile.supervisionStartDate,
         )}`}
         action={
-          profile.status !== "active" ? (
-            <Chip
-              label={profile.status === "paused" ? "Paused" : "Completed"}
-              color={profile.status === "paused" ? "warning" : "success"}
-            />
-          ) : null
+          <Stack direction="row" spacing={1} alignItems="center">
+            {profile.status !== "active" && (
+              <Chip
+                label={profile.status === "paused" ? "Paused" : "Completed"}
+                color={profile.status === "paused" ? "warning" : "success"}
+              />
+            )}
+            <Button variant="outlined" onClick={handleExport}>
+              Download my records (CSV)
+            </Button>
+          </Stack>
         }
       />
+
+      <SuperviseeLoggingBanner logging={data.logging} />
 
       <SummaryCards summary={summary} />
       {/* refreshKey: a new dashboard payload after any edit redraws the charts. */}
@@ -113,13 +140,15 @@ export default function SuperviseeDashboard() {
         </Typography>
       </Card>
 
-      <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
+      <HoursSection hoursApi={hoursApi} canEdit={loggingOpen} onChanged={loadDashboard} />
       <MeetingsSection meetingsApi={meetingsApi} canEdit={false} />
       {/* Hidden until the supervisor sets one — many never will. */}
       <AssignmentsSection
         assignmentsApi={assignmentsApi}
         mode="supervisee"
         hideWhenEmpty
+        canEdit={loggingOpen}
+        note={repliesNote}
         onChanged={loadDashboard}
       />
       {/* Hidden until the supervisor records a payment. */}

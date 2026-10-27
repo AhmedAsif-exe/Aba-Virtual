@@ -21,6 +21,7 @@ export const superviseeApi = {
   attachmentUrl: (assignmentId, attachmentId) =>
     apiUrl(`/supervision/me/assignments/${assignmentId}/attachments/${attachmentId}`),
   listPayments: () => api.get("/supervision/me/payments"),
+  exportRecords: () => downloadCsv("/supervision/me/export.csv"),
 };
 
 export const supervisorApi = {
@@ -31,6 +32,10 @@ export const supervisorApi = {
   updateSupervisee: (id, body) => api.patch(`/supervision/supervisees/${id}`, body),
   deleteSupervisee: (id) => api.delete(`/supervision/supervisees/${id}`),
   resetPassword: (id) => api.post(`/supervision/supervisees/${id}/reset-password`),
+  archive: (id) => api.post(`/supervision/supervisees/${id}/archive`),
+  restore: (id) => api.post(`/supervision/supervisees/${id}/restore`),
+  exportOne: (id) => downloadCsv(`/supervision/supervisees/${id}/export.csv`),
+  exportAll: () => downloadCsv("/supervision/export.csv"),
 
   listHours: (id) => api.get(`/supervision/supervisees/${id}/hours`),
   addHours: (id, body) => api.post(`/supervision/supervisees/${id}/hours`, body),
@@ -117,6 +122,24 @@ export const adminApi = {
   removeMember: (id, userId) => api.delete(`/admin/organisations/${id}/members/${userId}`),
   recordPayment: (id, body) => api.post(`/admin/organisations/${id}/payments`, body),
 };
+
+/**
+ * Fetch a CSV export and hand it to the browser as a download, named as the
+ * server names it. Goes through the API client so the login cookie is sent
+ * and errors arrive as normal API errors.
+ */
+async function downloadCsv(path) {
+  const res = await api.get(path, { responseType: "blob" });
+  const match = /filename="([^"]+)"/.exec(res.headers["content-disposition"] || "");
+  const url = URL.createObjectURL(res.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = match ? match[1] : "supervision-export.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 /** "2027-03-31" from a date box → the end of that day, UTC. */
 export const endOfDayUtc = (dateInput) => (dateInput ? `${dateInput}T23:59:59.000Z` : "");

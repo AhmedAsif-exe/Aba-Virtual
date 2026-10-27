@@ -21,6 +21,7 @@ import MeetingsSection from "./MeetingsSection";
 import PaymentsSection from "./PaymentsSection";
 import ProgressSection from "./ProgressSection";
 import { PageHeading, PortalContainer, PortalLoading, SummaryCards } from "./PortalShared";
+import { SupervisorPlanBanner, UpgradeDialog, UpgradeNotice, usePlan } from "./PlanNotices";
 import {
   apiError,
   boardsApi,
@@ -46,6 +47,9 @@ export default function SuperviseeDetail() {
   const [editOpen, setEditOpen] = React.useState(false);
   const [tempPassword, setTempPassword] = React.useState(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [upgrade, setUpgrade] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const { canWrite, can } = usePlan();
 
   const loadDashboard = React.useCallback(async () => {
     try {
@@ -126,6 +130,39 @@ export default function SuperviseeDetail() {
     }
   };
 
+  // Archive is allowed while read-only; restore needs a live pass and a free
+  // slot. A refusal the plan can fix opens the upgrade notice.
+  const toggleArchive = async () => {
+    const archiving = !data.profile.archivedAt;
+    if (
+      archiving &&
+      !window.confirm(
+        `Archive ${data.profile.name}? They keep all their records and can still view them, but can't log hours. You can restore them later if a slot is free.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await (archiving ? supervisorApi.archive(id) : supervisorApi.restore(id));
+      toast.success(archiving ? "Archived" : "Restored");
+      loadDashboard();
+    } catch (err) {
+      if (err?.response?.data?.upgradeRequired) setUpgrade(err.response.data.message);
+      else toast.error(apiError(err, archiving ? "Could not archive" : "Could not restore"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await supervisorApi.exportOne(id);
+    } catch (err) {
+      toast.error(apiError(err, "Could not export"));
+    }
+  };
+
   if (loading) return <PortalLoading />;
   if (!data) return null;
 
@@ -152,19 +189,42 @@ export default function SuperviseeDetail() {
           profile.supervisionStartDate,
         )}`}
         action={
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="outlined" onClick={handleExport}>
+              Export (CSV)
+            </Button>
             <Button variant="outlined" onClick={handleResetPassword}>
               Reset password
             </Button>
-            <Button variant="contained" onClick={() => setEditOpen(true)}>
+            <Button
+              variant="outlined"
+              onClick={toggleArchive}
+              disabled={busy || (Boolean(profile.archivedAt) && !canWrite)}
+            >
+              {profile.archivedAt ? "Restore" : "Archive"}
+            </Button>
+            <Button variant="contained" onClick={() => setEditOpen(true)} disabled={!canWrite}>
               Edit details
             </Button>
-            <Button variant="outlined" color="error" onClick={() => setDeleteOpen(true)}>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setDeleteOpen(true)}
+              disabled={!canWrite}
+            >
               Delete
             </Button>
           </Stack>
         }
       />
+
+      <SupervisorPlanBanner />
+      {profile.archivedAt && (
+        <Alert severity="info">
+          Archived on {formatDate(profile.archivedAt)}. {profile.name.split(" ")[0]} keeps every
+          record and can still view them, but can't log hours. Restore to make them active again.
+        </Alert>
+      )}
 
       <SummaryCards summary={summary} />
       {/* refreshKey: a new dashboard payload after any edit redraws the charts. */}
@@ -181,18 +241,31 @@ export default function SuperviseeDetail() {
         </Alert>
       )}
 
-      <HoursSection hoursApi={hoursApi} canEdit onChanged={loadDashboard} />
-      <MeetingsSection meetingsApi={meetingsApi} canEdit onChanged={loadDashboard} />
+      <HoursSection hoursApi={hoursApi} canEdit={canWrite} onChanged={loadDashboard} />
+      <MeetingsSection meetingsApi={meetingsApi} canEdit={canWrite} onChanged={loadDashboard} />
       <AssignmentsSection
         assignmentsApi={assignmentsApi}
         mode="supervisor"
+        canEdit={canWrite}
         onChanged={loadDashboard}
       />
-      <PaymentsSection
-        paymentsApi={paymentsApi}
-        mode="supervisor"
-        startDate={profile.supervisionStartDate}
-      />
+      {can("payment_tracking") ? (
+        <PaymentsSection
+          paymentsApi={paymentsApi}
+          mode="supervisor"
+          canEdit={canWrite}
+          startDate={profile.supervisionStartDate}
+        />
+      ) : (
+        <Box>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Supervision payments
+          </Typography>
+          <UpgradeNotice />
+        </Box>
+      )}
+
+      {upgrade && <UpgradeDialog message={upgrade} onClose={() => setUpgrade(null)} />}
 
       {editOpen && (
         <EditSuperviseeDialog

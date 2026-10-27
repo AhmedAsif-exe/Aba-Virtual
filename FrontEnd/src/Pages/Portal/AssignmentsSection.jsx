@@ -1,4 +1,5 @@
 import * as React from "react";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -81,11 +82,16 @@ function sortAssignments(list) {
  *
  * `assignmentsApi` adapts the calls for each mode; `fileUrl` is the only
  * member every mode needs besides `list`.
+ *
+ * `canEdit` false makes any mode read-only (a supervisor whose plan has
+ * ended, a supervisee whose replies are paused); `note` says why.
  */
 export default function AssignmentsSection({
   assignmentsApi,
   mode = "supervisee",
   hideWhenEmpty = false,
+  canEdit = true,
+  note,
   onChanged,
 }) {
   const isSupervisor = mode === "supervisor";
@@ -134,7 +140,7 @@ export default function AssignmentsSection({
     supervisee: "Work set by your supervisor. Update your progress as you go.",
     viewer: "Work and presentations set by the supervisor.",
   }[mode];
-  const showActions = mode !== "viewer";
+  const showActions = mode !== "viewer" && canEdit;
   const columns = showActions ? 4 : 3;
 
   return (
@@ -155,12 +161,18 @@ export default function AssignmentsSection({
             {subtitle}
           </Typography>
         </Box>
-        {isSupervisor && (
+        {isSupervisor && canEdit && (
           <Button variant="contained" onClick={() => setDialogAssignment({})}>
             Add assignment
           </Button>
         )}
       </Box>
+
+      {note && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {note}
+        </Alert>
+      )}
 
       <TableContainer>
         <Table size="small">

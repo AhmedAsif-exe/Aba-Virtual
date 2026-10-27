@@ -61,8 +61,16 @@ function monthsToShow(startDate, payments, currentMonth) {
  * supervisee a reminder (on by default), and a reminder can be resent.
  * mode "supervisee": read-only, and hidden until the supervisor records one.
  */
-export default function PaymentsSection({ paymentsApi, mode = "supervisee", startDate, onChanged }) {
+export default function PaymentsSection({
+  paymentsApi,
+  mode = "supervisee",
+  canEdit = true,
+  startDate,
+  onChanged,
+}) {
   const isSupervisor = mode === "supervisor";
+  // A supervisor whose plan has ended sees the months but can't set them.
+  const canSet = isSupervisor && canEdit;
   const [payments, setPayments] = React.useState(null);
   const [currentMonth, setCurrentMonth] = React.useState(new Date().toISOString().slice(0, 7));
   const [editing, setEditing] = React.useState(null);
@@ -145,7 +153,7 @@ export default function PaymentsSection({ paymentsApi, mode = "supervisee", star
               </Box>
             </Box>
           );
-          return isSupervisor ? (
+          return canSet ? (
             <ButtonBase
               key={month}
               onClick={() => setEditing({ month, record })}
