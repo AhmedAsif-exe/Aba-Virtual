@@ -17,6 +17,7 @@ const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
 const { can } = require("../Services/entitlements");
 const { planContextFor } = require("../Services/planContext");
+const { buildSuperviseeCsv, exportFileName } = require("../Services/exportCsv");
 const { quote } = require("../Services/planPurchase");
 const {
   LIMITS,
@@ -740,6 +741,23 @@ async function hidePaymentsUnlessTracked(req, res, next) {
   }
 }
 
+/**
+ * The supervisee's records as one CSV download. Reading only, so it stays
+ * open while the supervisor's pass has ended; private notes only for the
+ * supervisor.
+ */
+async function exportRecords(req, res, next) {
+  try {
+    const includePrivate = !req.readOnlyViewer && isSupervisor(req);
+    const { csv, name } = await buildSuperviseeCsv(req.profile, { includePrivate });
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="${exportFileName(name)}"`);
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+}
+
 /** Emails the supervisee about one unpaid month; records when it went. */
 async function remindAboutPayment(req, payment) {
   const supervisee = await User.findById(req.profile.userId).select("name email").lean();
@@ -1059,6 +1077,7 @@ router.get("/plans/quote", ensureAuth, async (req, res, next) => {
 
 router.get("/me", ensureAuth, ensureSupervisee, scopeFromSession, getDashboard);
 router.get("/me/progress", ensureAuth, ensureSupervisee, scopeFromSession, getProgress);
+router.get("/me/export.csv", ensureAuth, ensureSupervisee, scopeFromSession, exportRecords);
 router.get("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, listHours);
 // An archived supervisee keeps read access but no longer logs, or archiving
 // would be a way round the plan's supervisee limit.
@@ -1247,6 +1266,13 @@ router.get(
   ensureSupervisor,
   scopeFromParam,
   getProgress,
+);
+router.get(
+  "/supervisees/:id/export.csv",
+  ensureAuth,
+  ensureSupervisor,
+  scopeFromParam,
+  exportRecords,
 );
 
 router.patch(
