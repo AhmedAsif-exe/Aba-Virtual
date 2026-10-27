@@ -1,7 +1,9 @@
 # Supervision Portal: New Plans & Pricing, Phase 1 Plan
 
-Status: **approved 2026-10-27** (decisions in section 12). Reminder email wording still awaits approval.
-Source of truth: the approved spec (appendix of the task brief). Section numbers (§) refer to it.
+Status: **approved 2026-10-27.**
+Source of truth: **[supervision-plans-brief.md](supervision-plans-brief.md)**. It overrides the old spec, this plan's earlier sections and anything said in chat; section numbers (§) refer to it. Where this plan disagrees with the brief, the brief wins. Re-read both at the start of every session.
+
+> **Superseded by the brief:** the board values recorded in section 12 ("Board check") are what the database holds today, not correct requirements; the brief's §3a has the draft values. Reminder wording is final (brief §4.2), no review needed.
 
 ---
 
