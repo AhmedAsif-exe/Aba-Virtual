@@ -67,6 +67,8 @@ describe("GET /supervision/plans", () => {
     assert.strictEqual(byKey.professional.featured, true);
     assert.strictEqual(byKey.starter.maxActiveSupervisees, 3);
     assert.strictEqual(byKey.custom.checkout, "manual");
+    assert.strictEqual(byKey.starter.seatLimit, 1);
+    assert.strictEqual(byKey.custom.seatLimit, null);
   });
 
   test("SHOW_CLINIC_PLAN=true shows Clinic with its €160 saving", async () => {

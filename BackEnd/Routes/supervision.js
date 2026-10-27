@@ -1051,6 +1051,8 @@ router.get("/plans", (req, res) => {
       yearly: prices[key] ? yearlySavings(key) : null,
       // null means unlimited (JSON has no Infinity).
       maxActiveSupervisees: max === undefined ? null : Number.isFinite(max) ? max : null,
+      // Supervisor logins; null when set per customer (Custom) or not a supervisor plan.
+      seatLimit: LIMITS[key]?.seat_limit ?? null,
     };
   });
   res.json({ plans, showClinicPlan: showClinicPlan() });
