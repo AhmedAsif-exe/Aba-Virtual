@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
-const { planStatus } = require("../Services/supervisionPlans");
+const User = require("../Schema/User");
+const { canWrite } = require("../Services/entitlements");
 
 /**
  * Access control for the supervision portal.
@@ -39,21 +40,49 @@ function ensureSupervisee(req, res, next) {
 }
 
 /**
- * A supervisor also needs a live plan (or a complimentary account). A lapsed
- * plan locks every supervisor route at once — the roster, the logs, the
- * boards — while the data stays untouched for when they renew. 402 rather
- * than 403 so the frontend can tell "renew" apart from "not allowed".
+ * Role only. A lapsed plan no longer locks the supervisor out: they keep
+ * reading everything (§4.4), and requireActivePass stops the writes.
  */
 function ensureSupervisor(req, res, next) {
   if (req.user.portalRole !== "supervisor") {
     return res.status(403).json({ message: "Not a supervisor account" });
   }
-  if (!planStatus(req.user).active) {
+  return next();
+}
+
+/**
+ * Every supervisor write goes through this, after ensureSupervisor. An ended
+ * pass makes the account read-only; nothing is deleted. 402 rather than 403
+ * so the frontend can tell "renew" apart from "not allowed".
+ */
+function requireActivePass(req, res, next) {
+  if (!canWrite(req.user)) {
     return res
       .status(402)
       .json({ message: "Your supervision plan has ended. Renew to continue.", planExpired: true });
   }
   return next();
+}
+
+const SUPERVISOR_PLAN_ENDED =
+  "Your supervisor's plan has ended. You can view your records. Logging opens again when they renew.";
+
+/**
+ * Supervisee hour logging, after scopeFromSession: paused while their
+ * supervisor's pass has ended (§4.4). Reading stays open.
+ */
+async function requireSupervisorActive(req, res, next) {
+  try {
+    const supervisor = await User.findById(req.profile.supervisorId).select(
+      "email supervisionPlan",
+    );
+    if (!supervisor || !canWrite(supervisor)) {
+      return res.status(402).json({ message: SUPERVISOR_PLAN_ENDED, supervisorPlanEnded: true });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 }
 
 /**
@@ -94,6 +123,9 @@ module.exports = {
   ensureAuth,
   ensureSupervisee,
   ensureSupervisor,
+  requireActivePass,
+  requireSupervisorActive,
+  SUPERVISOR_PLAN_ENDED,
   ensurePasswordChanged,
   resolveSuperviseeScope,
 };

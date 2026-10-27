@@ -2,7 +2,7 @@ const express = require("express");
 
 const SupervisionBoard = require("../Schema/SupervisionBoard");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
-const { ensureAuth, ensureSupervisor } = require("../Middleware/supervisionAuth");
+const { ensureAuth, ensureSupervisor, requireActivePass } = require("../Middleware/supervisionAuth");
 
 const router = express.Router();
 
@@ -21,7 +21,7 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", requireActivePass, async (req, res, next) => {
   try {
     const name = (req.body?.name || "").trim();
     if (!name) return res.status(400).json({ message: "Board name is required" });
@@ -43,7 +43,7 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.patch("/:id", async (req, res, next) => {
+router.patch("/:id", requireActivePass, async (req, res, next) => {
   try {
     const board = await SupervisionBoard.findById(req.params.id);
     if (!board) return res.status(404).json({ message: "Board not found" });
@@ -80,7 +80,7 @@ router.patch("/:id", async (req, res, next) => {
  * instead — it disappears from the dropdown, and existing supervisees keep
  * reading correctly.
  */
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireActivePass, async (req, res, next) => {
   try {
     const board = await SupervisionBoard.findById(req.params.id);
     if (!board) return res.status(404).json({ message: "Board not found" });

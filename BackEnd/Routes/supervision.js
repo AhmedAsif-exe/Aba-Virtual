@@ -30,6 +30,8 @@ const {
   ensureAuth,
   ensureSupervisee,
   ensureSupervisor,
+  requireActivePass,
+  requireSupervisorActive,
   resolveSuperviseeScope,
 } = require("../Middleware/supervisionAuth");
 
@@ -961,9 +963,11 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 router.get("/me", ensureAuth, ensureSupervisee, scopeFromSession, getDashboard);
 router.get("/me/progress", ensureAuth, ensureSupervisee, scopeFromSession, getProgress);
 router.get("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, listHours);
-router.post("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, createHours);
-router.patch("/me/hours/:entryId", ensureAuth, ensureSupervisee, scopeFromSession, updateHours);
-router.delete("/me/hours/:entryId", ensureAuth, ensureSupervisee, scopeFromSession, deleteHours);
+// Logging pauses while the supervisor's pass has ended (§4.4).
+const superviseeLogging = [ensureAuth, ensureSupervisee, scopeFromSession, requireSupervisorActive];
+router.post("/me/hours", ...superviseeLogging, createHours);
+router.patch("/me/hours/:entryId", ...superviseeLogging, updateHours);
+router.delete("/me/hours/:entryId", ...superviseeLogging, deleteHours);
 
 // Read-only: supervision hours are the supervisor's record of contact time.
 router.get("/me/meetings", ensureAuth, ensureSupervisee, scopeFromSession, listMeetings);
@@ -1027,7 +1031,7 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
  * than rejected — they keep their password and their purchases and simply
  * gain the portal. Only a genuinely new account gets a generated password.
  */
-router.post("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) => {
+router.post("/supervisees", ensureAuth, ensureSupervisor, requireActivePass, async (req, res, next) => {
   try {
     const name = (req.body?.name || "").trim();
     const email = (req.body?.email || "").trim().toLowerCase();
@@ -1127,6 +1131,7 @@ router.patch(
   "/supervisees/:id",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   async (req, res, next) => {
     try {
@@ -1188,7 +1193,7 @@ router.patch(
  * with purchases, so it only loses the portal (portalRole cleared). Adding
  * the same email again later links that account to a fresh record.
  */
-router.delete("/supervisees/:id", ensureAuth, ensureSupervisor, scopeFromParam, async (req, res, next) => {
+router.delete("/supervisees/:id", ensureAuth, ensureSupervisor, requireActivePass, scopeFromParam, async (req, res, next) => {
   try {
     const profile = req.profile;
     const assignments = await SupervisionAssignment.find({ superviseeId: profile._id })
@@ -1244,11 +1249,19 @@ router.post(
 // handlers, so a correction is validated exactly like a self-report and the
 // unique-week rule holds for both.
 router.get("/supervisees/:id/hours", ensureAuth, ensureSupervisor, scopeFromParam, listHours);
-router.post("/supervisees/:id/hours", ensureAuth, ensureSupervisor, scopeFromParam, createHours);
+router.post(
+  "/supervisees/:id/hours",
+  ensureAuth,
+  ensureSupervisor,
+  requireActivePass,
+  scopeFromParam,
+  createHours,
+);
 router.patch(
   "/supervisees/:id/hours/:entryId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   updateHours,
 );
@@ -1256,6 +1269,7 @@ router.delete(
   "/supervisees/:id/hours/:entryId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   deleteHours,
 );
@@ -1266,6 +1280,7 @@ router.post(
   "/supervisees/:id/meetings",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   createMeeting,
 );
@@ -1273,6 +1288,7 @@ router.patch(
   "/supervisees/:id/meetings/:meetingId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   updateMeeting,
 );
@@ -1280,6 +1296,7 @@ router.delete(
   "/supervisees/:id/meetings/:meetingId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   deleteMeeting,
 );
@@ -1296,6 +1313,7 @@ router.post(
   "/supervisees/:id/assignments",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   createAssignment,
 );
@@ -1303,6 +1321,7 @@ router.patch(
   "/supervisees/:id/assignments/:assignmentId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   updateAssignment,
 );
@@ -1310,6 +1329,7 @@ router.delete(
   "/supervisees/:id/assignments/:assignmentId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   deleteAssignment,
 );
@@ -1320,6 +1340,7 @@ router.post(
   "/supervisees/:id/assignments/:assignmentId/attachments",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   receiveAttachments,
   addAttachments,
@@ -1335,6 +1356,7 @@ router.delete(
   "/supervisees/:id/assignments/:assignmentId/attachments/:attachmentId",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   deleteAttachment,
 );
@@ -1353,6 +1375,7 @@ router.put(
   "/supervisees/:id/payments/:month",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   setPayment,
 );
@@ -1360,6 +1383,7 @@ router.post(
   "/supervisees/:id/payments/:month/remind",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   sendPaymentReminderNow,
 );
@@ -1367,13 +1391,14 @@ router.delete(
   "/supervisees/:id/payments/:month",
   ensureAuth,
   ensureSupervisor,
+  requireActivePass,
   scopeFromParam,
   clearPayment,
 );
 
 // Sharing: the supervisor manages who can view...
 router.get("/shares", ensureAuth, ensureSupervisor, listShares);
-router.post("/shares", ensureAuth, ensureSupervisor, createShare);
+router.post("/shares", ensureAuth, ensureSupervisor, requireActivePass, createShare);
 router.delete("/shares/:shareId", ensureAuth, ensureSupervisor, deleteShare);
 
 // ...and a viewer reads. GET only, by design; payments are not shared.
