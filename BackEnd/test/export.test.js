@@ -89,6 +89,45 @@ describe("supervisor export", () => {
   });
 });
 
+describe("combined export (all of a supervisor's supervisees)", () => {
+  test("one file with every supervisee, archived ones too, while read-only", async () => {
+    const { supervisor } = await seed({ supervisorFields: { expiresAt: daysFromNow(-3) } });
+    const { profile: second } = await makeSupervisee(supervisor, { archivedAt: new Date("2026-10-15") });
+    await WorkHoursEntry.create({
+      superviseeId: second._id,
+      weekStartDate: new Date("2026-10-12"),
+      hours: 4,
+      createdBy: supervisor._id,
+    });
+
+    const res = await download("/supervision/export.csv", supervisor);
+    assert.strictEqual(res.status, 200);
+    assert.match(
+      res.headers["content-disposition"],
+      /filename="supervision-all-supervisees-\d{4}-\d{2}-\d{2}\.csv"/,
+    );
+    const csv = res.body;
+    assert.ok(csv.includes("\r\nFieldwork hours\r\nSupervisee,Email,Week starting,Hours,Note\r\n"));
+    const hourRows = csv.split("\r\n").filter((l) => /,2026-10-(05|12),/.test(l));
+    assert.strictEqual(hourRows.length, 2); // one per supervisee
+    assert.ok(csv.includes("2026-10-15")); // archived date in the Supervisees section
+    assert.ok(csv.includes("PRIVATE: discuss pacing"));
+  });
+
+  test("never includes another supervisor's supervisees", async () => {
+    await seed();
+    const other = await makeSupervisor();
+    const res = await download("/supervision/export.csv", other);
+    assert.strictEqual(res.status, 200);
+    assert.ok(!res.body.includes("Clinic, then home visits"));
+  });
+
+  test("supervisees can't use it", async () => {
+    const { user } = await seed();
+    assert.strictEqual((await request(app).get("/supervision/export.csv").set(as(user))).status, 403);
+  });
+});
+
 describe("supervisee export", () => {
   test("their own records, without the supervisor's private notes, even archived and with the plan ended", async () => {
     const { user } = await seed({

@@ -17,7 +17,7 @@ const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
 const { can } = require("../Services/entitlements");
 const { planContextFor } = require("../Services/planContext");
-const { buildSuperviseeCsv, exportFileName } = require("../Services/exportCsv");
+const { buildSuperviseeCsv, buildSupervisorCsv, exportFileName } = require("../Services/exportCsv");
 const { quote } = require("../Services/planPurchase");
 const {
   LIMITS,
@@ -1159,6 +1159,22 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
     );
 
     res.json({ supervisees: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Every supervisee's records (archived ones too) in one CSV. Reading only,
+ * so it stays open while the supervisor's pass has ended.
+ */
+router.get("/export.csv", ensureAuth, ensureSupervisor, async (req, res, next) => {
+  try {
+    const profiles = await SuperviseeProfile.find({ supervisorId: req.user._id });
+    const { csv } = await buildSupervisorCsv(profiles);
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="${exportFileName("all-supervisees")}"`);
+    res.send(csv);
   } catch (err) {
     next(err);
   }
