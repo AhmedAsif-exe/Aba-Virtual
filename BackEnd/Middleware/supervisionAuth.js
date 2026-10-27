@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
 const User = require("../Schema/User");
-const { canWrite } = require("../Services/entitlements");
+const { can, canWrite } = require("../Services/entitlements");
 
 /**
  * Access control for the supervision portal.
@@ -62,6 +62,22 @@ function requireActivePass(req, res, next) {
       .json({ message: "Your supervision plan has ended. Renew to continue.", planExpired: true });
   }
   return next();
+}
+
+// The spec gives no wording for this; see the plan's open items.
+const NOT_IN_PLAN = "Your plan doesn't include this feature.";
+
+/**
+ * A feature the supervisor's plan must include (Config/plans.js FEATURES).
+ * Unaffected by expiry: a lapsed plan keeps its features for reading.
+ */
+function requireFeature(feature) {
+  return function featureGate(req, res, next) {
+    if (!can(req.user, feature)) {
+      return res.status(403).json({ message: NOT_IN_PLAN, upgradeRequired: feature });
+    }
+    return next();
+  };
 }
 
 const SUPERVISOR_PLAN_ENDED =
@@ -125,6 +141,8 @@ module.exports = {
   ensureSupervisor,
   requireActivePass,
   requireSupervisorActive,
+  requireFeature,
+  NOT_IN_PLAN,
   SUPERVISOR_PLAN_ENDED,
   ensurePasswordChanged,
   resolveSuperviseeScope,

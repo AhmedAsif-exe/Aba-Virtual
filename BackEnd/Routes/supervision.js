@@ -15,7 +15,7 @@ const SupervisionAssignment = require("../Schema/SupervisionAssignment");
 const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES, ASSIGNMENT_KINDS } = SupervisionAssignment;
 const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
-const { planStatus } = require("../Services/supervisionPlans");
+const { can } = require("../Services/entitlements");
 const {
   sendPaymentReminder,
   sendShareInvite,
@@ -32,6 +32,7 @@ const {
   ensureSupervisor,
   requireActivePass,
   requireSupervisorActive,
+  requireFeature,
   resolveSuperviseeScope,
 } = require("../Middleware/supervisionAuth");
 
@@ -705,6 +706,25 @@ async function listPayments(req, res, next) {
   }
 }
 
+/**
+ * A supervisee sees no payments while their supervisor's plan lacks payment
+ * tracking. An empty list rather than an error: the dashboard simply hides
+ * the section, and the records are back when the supervisor upgrades.
+ */
+async function hidePaymentsUnlessTracked(req, res, next) {
+  try {
+    const supervisor = await User.findById(req.profile.supervisorId).select(
+      "email supervisionPlan",
+    );
+    if (!supervisor || !can(supervisor, "payment_tracking")) {
+      return res.json({ payments: [], currentMonth: currentMonthKey() });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 /** Emails the supervisee about one unpaid month; records when it went. */
 async function remindAboutPayment(req, payment) {
   const supervisee = await User.findById(req.profile.userId).select("name email").lean();
@@ -864,8 +884,8 @@ async function listSharedWithMe(req, res, next) {
         name: u.name,
         email: u.email,
         pfp: u.pfp,
-        // A lapsed plan locks viewers out too, the same as the supervisor.
-        available: planStatus(u).active,
+        // Open while the owner's plan includes sharing, ended pass or not.
+        available: can(u, "view_only_sharing"),
       })),
     });
   } catch (err) {
@@ -875,7 +895,9 @@ async function listSharedWithMe(req, res, next) {
 
 /**
  * Gate for every /shared/:supervisorId route: the caller's email must hold a
- * share from that supervisor, and the supervisor's plan must be live. Sets
+ * share from that supervisor, and the supervisor's plan must include
+ * view-only sharing. An ended pass doesn't close it — viewers keep read
+ * access, as the owner does (§4.4). Sets
  * `req.readOnlyViewer` so shared handlers never treat the viewer as the
  * supervisor (private notes stay private).
  */
@@ -895,8 +917,8 @@ async function ensureViewer(req, res, next) {
       "name email supervisionPlan portalRole",
     );
     if (!supervisor || supervisor.portalRole !== "supervisor") return deny();
-    if (!planStatus(supervisor).active) {
-      return res.status(402).json({ message: "This shared portal isn't available right now" });
+    if (!can(supervisor, "view_only_sharing")) {
+      return res.status(403).json({ message: "This shared portal isn't available right now" });
     }
 
     req.readOnlyViewer = true;
@@ -994,13 +1016,16 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
     });
 
     // This month's payment and any unpaid months, for the green/red marker.
+    // Left empty on plans without payment tracking; the records are kept.
     const month = currentMonthKey();
-    const payments = await SupervisionPayment.find({
-      superviseeId: { $in: profiles.map((p) => p._id) },
-      $or: [{ month }, { status: "unpaid" }],
-    })
-      .select("superviseeId month status")
-      .lean();
+    const payments = can(req.user, "payment_tracking")
+      ? await SupervisionPayment.find({
+          superviseeId: { $in: profiles.map((p) => p._id) },
+          $or: [{ month }, { status: "unpaid" }],
+        })
+          .select("superviseeId month status")
+          .lean()
+      : [];
 
     const rows = await Promise.all(
       profiles.map(async (profile) => {
@@ -1368,14 +1393,31 @@ router.get(
   downloadAttachment,
 );
 
-// Payments: the supervisor records, the supervisee reads their own.
-router.get("/me/payments", ensureAuth, ensureSupervisee, scopeFromSession, listPayments);
-router.get("/supervisees/:id/payments", ensureAuth, ensureSupervisor, scopeFromParam, listPayments);
+// Payments: the supervisor records, the supervisee reads their own. Plans
+// without payment tracking (Starter) keep the records but can't reach them.
+const paymentTracking = requireFeature("payment_tracking");
+router.get(
+  "/me/payments",
+  ensureAuth,
+  ensureSupervisee,
+  scopeFromSession,
+  hidePaymentsUnlessTracked,
+  listPayments,
+);
+router.get(
+  "/supervisees/:id/payments",
+  ensureAuth,
+  ensureSupervisor,
+  paymentTracking,
+  scopeFromParam,
+  listPayments,
+);
 router.put(
   "/supervisees/:id/payments/:month",
   ensureAuth,
   ensureSupervisor,
   requireActivePass,
+  paymentTracking,
   scopeFromParam,
   setPayment,
 );
@@ -1384,6 +1426,7 @@ router.post(
   ensureAuth,
   ensureSupervisor,
   requireActivePass,
+  paymentTracking,
   scopeFromParam,
   sendPaymentReminderNow,
 );
@@ -1392,13 +1435,21 @@ router.delete(
   ensureAuth,
   ensureSupervisor,
   requireActivePass,
+  paymentTracking,
   scopeFromParam,
   clearPayment,
 );
 
 // Sharing: the supervisor manages who can view...
 router.get("/shares", ensureAuth, ensureSupervisor, listShares);
-router.post("/shares", ensureAuth, ensureSupervisor, requireActivePass, createShare);
+router.post(
+  "/shares",
+  ensureAuth,
+  ensureSupervisor,
+  requireActivePass,
+  requireFeature("view_only_sharing"),
+  createShare,
+);
 router.delete("/shares/:shareId", ensureAuth, ensureSupervisor, deleteShare);
 
 // ...and a viewer reads. GET only, by design; payments are not shared.
