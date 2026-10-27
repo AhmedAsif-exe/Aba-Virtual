@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const SuperviseeProfile = require("../Schema/SuperviseeProfile");
 const User = require("../Schema/User");
-const { can, canWrite } = require("../Services/entitlements");
+const { can, canWrite, limit, effectivePlan } = require("../Services/entitlements");
+const { PLAN_NAMES } = require("../Config/plans");
 
 /**
  * Access control for the supervision portal.
@@ -80,6 +81,37 @@ function requireFeature(feature) {
   };
 }
 
+/** §4.5 wording, with the plan name and number taken from config. */
+const limitMessage = (planKey, max) =>
+  `${PLAN_NAMES[planKey]} includes up to ${max} supervisees. Upgrade to Professional for unlimited supervisees.`;
+
+/**
+ * Adding or restoring a supervisee needs a free slot: active (unarchived)
+ * supervisees must be under the plan's limit (§4.5). Enforced here, not by
+ * hiding the button.
+ */
+async function requireSlot(req, res, next) {
+  try {
+    const max = limit(req.user, "max_active_supervisees");
+    if (Number.isFinite(max)) {
+      const active = await SuperviseeProfile.countDocuments({
+        supervisorId: req.user._id,
+        archivedAt: null,
+      });
+      if (active >= max) {
+        const { planKey } = effectivePlan(req.user);
+        return res.status(403).json({
+          message: limitMessage(planKey, max),
+          upgradeRequired: "max_active_supervisees",
+        });
+      }
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
+
 const SUPERVISOR_PLAN_ENDED =
   "Your supervisor's plan has ended. You can view your records. Logging opens again when they renew.";
 
@@ -142,6 +174,8 @@ module.exports = {
   requireActivePass,
   requireSupervisorActive,
   requireFeature,
+  requireSlot,
+  limitMessage,
   NOT_IN_PLAN,
   SUPERVISOR_PLAN_ENDED,
   ensurePasswordChanged,

@@ -97,6 +97,7 @@ function baseJSON(profile, { user, board }) {
     supervisionStartDate: profile.supervisionStartDate,
     contactPhone: profile.contactPhone,
     status: profile.status,
+    archivedAt: profile.archivedAt,
   };
 }
 

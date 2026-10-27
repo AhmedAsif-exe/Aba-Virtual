@@ -33,6 +33,7 @@ const {
   requireActivePass,
   requireSupervisorActive,
   requireFeature,
+  requireSlot,
   resolveSuperviseeScope,
 } = require("../Middleware/supervisionAuth");
 
@@ -985,8 +986,25 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 router.get("/me", ensureAuth, ensureSupervisee, scopeFromSession, getDashboard);
 router.get("/me/progress", ensureAuth, ensureSupervisee, scopeFromSession, getProgress);
 router.get("/me/hours", ensureAuth, ensureSupervisee, scopeFromSession, listHours);
+// An archived supervisee keeps read access but no longer logs, or archiving
+// would be a way round the plan's supervisee limit.
+function rejectArchived(req, res, next) {
+  if (req.profile.archivedAt) {
+    return res
+      .status(403)
+      .json({ message: "Your supervisor has archived your record. You can view your records." });
+  }
+  return next();
+}
+
 // Logging pauses while the supervisor's pass has ended (§4.4).
-const superviseeLogging = [ensureAuth, ensureSupervisee, scopeFromSession, requireSupervisorActive];
+const superviseeLogging = [
+  ensureAuth,
+  ensureSupervisee,
+  scopeFromSession,
+  rejectArchived,
+  requireSupervisorActive,
+];
 router.post("/me/hours", ...superviseeLogging, createHours);
 router.patch("/me/hours/:entryId", ...superviseeLogging, updateHours);
 router.delete("/me/hours/:entryId", ...superviseeLogging, deleteHours);
@@ -1056,7 +1074,7 @@ router.get("/supervisees", ensureAuth, ensureSupervisor, async (req, res, next) 
  * than rejected — they keep their password and their purchases and simply
  * gain the portal. Only a genuinely new account gets a generated password.
  */
-router.post("/supervisees", ensureAuth, ensureSupervisor, requireActivePass, async (req, res, next) => {
+router.post("/supervisees", ensureAuth, ensureSupervisor, requireActivePass, requireSlot, async (req, res, next) => {
   try {
     const name = (req.body?.name || "").trim();
     const email = (req.body?.email || "").trim().toLowerCase();
@@ -1246,6 +1264,60 @@ router.delete("/supervisees/:id", ensureAuth, ensureSupervisor, requireActivePas
     next(err);
   }
 });
+
+/**
+ * Archive frees a slot on a plan with a supervisee limit (§4.5). Nothing is
+ * deleted: the supervisee keeps their login and can still view every record.
+ */
+router.post(
+  "/supervisees/:id/archive",
+  ensureAuth,
+  ensureSupervisor,
+  requireActivePass,
+  scopeFromParam,
+  async (req, res, next) => {
+    try {
+      const profile = req.profile;
+      if (!profile.archivedAt) {
+        profile.archivedAt = new Date();
+        await profile.save();
+      }
+      res.json({ supervisee: profile.toSupervisorJSON(await loadRefs(profile)) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/** Restore takes a slot back, so it needs one free, like adding someone. */
+router.post(
+  "/supervisees/:id/restore",
+  ensureAuth,
+  ensureSupervisor,
+  requireActivePass,
+  scopeFromParam,
+  async (req, res, next) => {
+    try {
+      // Already active: nothing to restore, and no slot to take.
+      if (!req.profile.archivedAt) {
+        return res.json({ supervisee: req.profile.toSupervisorJSON(await loadRefs(req.profile)) });
+      }
+      return requireSlot(req, res, next);
+    } catch (err) {
+      return next(err);
+    }
+  },
+  async (req, res, next) => {
+    try {
+      const profile = req.profile;
+      profile.archivedAt = null;
+      await profile.save();
+      res.json({ supervisee: profile.toSupervisorJSON(await loadRefs(profile)) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 /** Issues a fresh temporary password when a supervisee is locked out. */
 router.post(
