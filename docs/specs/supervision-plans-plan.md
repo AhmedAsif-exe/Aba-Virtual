@@ -306,7 +306,23 @@ migrationCreditDays(paidEur, newYearlyEur, days=365)     // ceil(50 / (300/365))
 | 14 | Export | CSV export per supervisee: hours, meetings with notes, assignments with ratings, monthly progress. Available to the supervisor (also while read-only) and to the supervisee for their own records. Attachments stay downloadable as today. Supervisor private notes (`supervisorNotes`) are not in the supervisee's export. Meeting `notes` are in both, because supervisees already see them today. |
 | 15 | Approve hours | No approval workflow is added. Every supervisor hour create, edit or delete is a write, blocked when read-only. |
 | — | Shared viewers | Keep view-only access after the owner's plan ends (if the owner's plan includes sharing). |
-| — | Rounding | Migration credit rounds up (61 days). Plan changes round down. Both exactly as written in the spec. |
+| — | Rounding | Migration credit rounds up (61 days). Plan changes round down. Both exactly as written in the spec. Monthly equivalents are rounded to the cent ("About €66.67 a month"). PKR keeps the existing rule (`pkrFromEur`: today's rate, nearest Rs 50), unchanged. |
+
+### Decisions from the second brief (approved 2026-10-27)
+
+| # | Topic | Decision |
+| --- | --- | --- |
+| Q1 | Custom vs phase order | Option (a): organisation tables in Phase 1, used only by the Custom admin screen. (Same as decision 1.) |
+| Q2 | Price for day conversion | The price actually paid, never today's config. Every plan order snapshots plan, period, price paid and period days; stacked passes keep one blended per-day value. Migrated €350 yearly = €300 rate. (Same as decisions 2 and 3.) |
+| Q3 | Plan changes the spec doesn't cover | Monthly ↔ yearly on the same plan = renewal, stacks (10 days left on Professional monthly + Professional yearly = 375 days). Professional → Clinic: Phase 2; per §6.3 the individual pass is kept separately, not converted. Clinic → Professional: Phase 2; clinic time stays with the clinic, nothing converts. Anything ↔ Custom: set by hand on the admin screen. |
+| Q4 | Reminders for organisations | The organisation's admin(s) only. Other members get no reminder emails; they see the read-only banner once the plan ends. |
+| Q5 | Rounding | As the Rounding row above. |
+| — | Migration emails | Sent only with `--send-emails`. `--dry-run` never sends, whatever other options are given. The dry run prints counts and sample rows. |
+| — | Linter | No backend ESLint on this branch. "Done" means `npm test` (backend) passes and the frontend lints clean (CRA's ESLint, run as part of `npm run build`). |
+
+### Follow-up tasks (not in this branch)
+
+- Add ESLint to `BackEnd/` (it has no linter today).
 
 ### Board check (read-only query, 2026-10-27)
 
