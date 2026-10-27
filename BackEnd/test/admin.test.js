@@ -109,6 +109,20 @@ describe("Custom organisations (§7)", () => {
     assert.strictEqual((await User.findById(second._id)).portalRole, null);
   });
 
+  test("joining or leaving an organisation never changes the person's own plan", async () => {
+    const admin = await makeAdmin();
+    const org = await createOrg(admin);
+    const supervisor = await makeSupervisor({ planKey: "starter", expiresAt: daysFromNow(20), rateEurPerDay: 0.5 });
+    const ownBefore = (await User.findById(supervisor._id).lean()).supervisionPlan;
+
+    await request(app).post(`/admin/organisations/${org._id}/members`).set(as(admin))
+      .send({ email: supervisor.email, role: "supervisor" });
+    assert.deepStrictEqual((await User.findById(supervisor._id).lean()).supervisionPlan, ownBefore);
+
+    await request(app).delete(`/admin/organisations/${org._id}/members/${supervisor._id}`).set(as(admin));
+    assert.deepStrictEqual((await User.findById(supervisor._id).lean()).supervisionPlan, ownBefore);
+  });
+
   test("an account can't be in two organisations, and supervisees can't be attached", async () => {
     const admin = await makeAdmin();
     const a = await createOrg(admin, { name: "A" });

@@ -11,6 +11,7 @@ const { daysFromNow, makeSupervisor, makeSupervisee } = require("./helpers/fixtu
 const supervisionRouter = require("../Routes/supervision");
 const boardsRouter = require("../Routes/boards");
 const { SUPERVISOR_PLAN_ENDED } = require("../Middleware/supervisionAuth");
+const SupervisionShare = require("../Schema/SupervisionShare");
 const SupervisionAssignment = require("../Schema/SupervisionAssignment");
 
 const app = buildApp({ "/supervision": supervisionRouter, "/boards": boardsRouter });
@@ -101,6 +102,14 @@ describe("expired supervisor (§4.4)", () => {
       .post(`/supervision/supervisees/${profile._id}/restore`)
       .set(as(supervisor));
     assert.strictEqual(restored.status, 402);
+  });
+
+  test("can still remove a share", async () => {
+    const supervisor = await makeSupervisor({ expiresAt: daysFromNow(-1) });
+    const share = await SupervisionShare.create({ supervisorId: supervisor._id, email: "viewer@example.test" });
+    const res = await request(app).delete(`/supervision/shares/${share._id}`).set(as(supervisor));
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(await SupervisionShare.countDocuments(), 0);
   });
 
   test("can still reset a supervisee's password (account recovery)", async () => {
