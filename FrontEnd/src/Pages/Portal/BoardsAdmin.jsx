@@ -250,7 +250,7 @@ function BoardDialog({ board, onClose, onSaved }) {
               label="Default ratio (optional)"
               value={form.defaultRatio}
               onChange={set("defaultRatio")}
-              placeholder="1:10"
+              placeholder="e.g. 5%"
               fullWidth
             />
             <TextField

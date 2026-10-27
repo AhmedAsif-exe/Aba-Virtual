@@ -371,7 +371,7 @@ function AddSuperviseeDialog({ onClose, onCreated }) {
                 label="Supervision ratio (optional)"
                 value={form.supervisionRatio}
                 onChange={set("supervisionRatio")}
-                placeholder="1:10"
+                placeholder="e.g. 5%"
                 helperText="Reference only"
                 fullWidth
               />

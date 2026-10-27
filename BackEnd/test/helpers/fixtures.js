@@ -23,10 +23,10 @@ function makeSupervisor({
   });
 }
 
-const makeBoard = (name = "BACB") =>
+const makeBoard = (name = "Test Board") =>
   SupervisionBoard.findOneAndUpdate(
     { name },
-    { name, defaultRequiredHours: 2000, defaultRatio: "1:10" },
+    { name, defaultRequiredHours: 1000, defaultRatio: "" },
     { upsert: true, new: true },
   );
 

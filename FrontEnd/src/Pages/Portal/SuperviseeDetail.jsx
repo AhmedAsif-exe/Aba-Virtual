@@ -311,7 +311,7 @@ function EditSuperviseeDialog({ profile, onClose, onSaved }) {
                 label="Supervision ratio"
                 value={form.supervisionRatio}
                 onChange={set("supervisionRatio")}
-                placeholder="1:10"
+                placeholder="e.g. 5%"
                 helperText="Reference only"
                 fullWidth
               />
