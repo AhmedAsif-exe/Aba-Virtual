@@ -1,151 +1,185 @@
 import * as React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { Link } from "react-router-dom";
+import CheckIcon from "@mui/icons-material/Check";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { toast } from "react-toastify";
 
+import api from "axiosInstance";
 import { formatAmount, useProjectContext } from "Utils/Context";
-import { initiateCheckoutSession } from "Utils/Queries/Checkout";
 import { formatDate } from "./portalApi";
 import PortalPreview from "./PortalPreview";
+import PlanPeriodToggle from "./PlanPeriodToggle";
 import { PORTAL_FEATURES } from "Pages/Home/SupervisionShowcase";
 
-// Mirrors BackEnd/Services/supervisionPlans.js. The server prices checkout
-// from the id alone; `price` (EUR) here is only for display.
-const PLANS = [
-  { id: "supervision-monthly", name: "Monthly", price: 30, period: "month", days: 30 },
-  { id: "supervision-yearly", name: "Yearly", price: 350, period: "year", days: 365 },
-];
+// Styled from the ABA Virtual design system only (the ds-* tokens in
+// tailwind.config.js, Raleway, radius-lg buttons / radius-xl cards, Tailwind
+// shadow-md → lg). Scoped to this page: no shared classes are changed.
 
-// Every paid plan includes the whole portal; they differ only in length.
-const FEATURES = [
-  "Unlimited supervisees, each with their own login",
-  "Weekly fieldwork hours and supervision meeting logs",
+const CUSTOM_MAILTO = "mailto:contact@abavirtual.net?subject=Custom%20supervision%20portal%20plan";
+const PERIOD_KEY = "aba.supervisionPlanPeriod";
+
+// What each card lists, in the wording of the brief's features table (§3).
+// Prices, logins and supervisee limits come from the server's plan config.
+const CORE_FEATURES = [
+  "Weekly fieldwork hour logging",
+  "Supervisor reviews and edits hour entries",
+  "Supervision meetings with notes",
   "Monthly progress graphs and supervision %",
-  "Assignments board with file attachments and ratings",
-  "View-only sharing with other supervisors",
-  "BACB, IBAO, QABA and your own certifying boards",
+  "Assignments board with files and ratings (out of 10)",
+  "BACB / IBAO / QABA / custom board requirements",
 ];
+const CARD_FEATURES = {
+  supervisee: [
+    "Own login (invite email, set password on first sign-in)",
+    "Weekly fieldwork hour logging",
+    "View supervision meetings with notes",
+    "View monthly progress graphs and supervision %",
+    "View assignments board with files and ratings (out of 10)",
+  ],
+  starter: CORE_FEATURES,
+  professional: [
+    "Everything in Starter",
+    "View-only sharing with another supervisor",
+    "Mark supervision payments as paid",
+  ],
+  clinic: [
+    "Everything in Professional",
+    "Multiple supervisor logins under one organisation",
+    "Clinic dashboard",
+    "Move supervisees between supervisors",
+    "One admin, one payment for the team",
+  ],
+  custom: [
+    "Everything in Clinic",
+    "Board requirements set up by ABA Virtual",
+    "Onboarding call, invoice billing, priority support",
+  ],
+};
 
-// What a supervisee sees in their own login (the /me routes).
-const SUPERVISEE_FEATURES = [
-  "Your own login, set up by your supervisor",
-  "Log your fieldwork hours each week",
-  "See your supervision meetings and notes",
-  "Track your monthly progress",
-  "Open assignments and their attached files",
-];
-
+// §8.5, word for word.
 const FAQS = [
   {
     q: "Is this a subscription?",
-    a: "No. Each payment is a one-off that adds 30 days (Monthly) or 365 days (Yearly) of access. Nothing renews automatically. If you renew early, the new time is added on top of what you have left.",
+    a: "No. Each payment adds 30 days or 365 days of access. Nothing renews automatically, and renewing early adds the new time to what you have left.",
   },
   {
     q: "What happens when my plan ends?",
-    a: "The portal locks until you renew. Nothing is deleted: your supervisees, their hours, meetings and assignments are all kept.",
+    a: "Your account becomes read-only. You can still log in, view and export everything, and your supervisees can view their records. Nothing is deleted. Renew any time to pick up where you left off.",
   },
   {
     q: "Do my supervisees need to pay?",
-    a: "No. Only supervisors choose a plan. You add your supervisees and each one gets a welcome email with their login.",
+    a: "No. Supervisees always join free. You invite them from your account and they set their own password.",
   },
   {
     q: "Which currency am I charged in?",
-    a: "Prices are shown in your local currency where we can, but cards are billed in Pakistani rupees (PKR) through PayFast, our payment provider.",
+    a: "Prices are shown in euros. Cards are billed in PKR by PayFast, converted at the day's rate. Custom plans can be invoiced in EUR, PKR or USD.",
   },
   {
     q: "Which certification boards does it support?",
-    a: "BACB, IBAO and QABA are set up already, and you can add your own board with its own requirements.",
+    a: "BACB, IBAO and QABA, or you can set up your own board's requirements. On the Custom plan, we set them up for you.",
+  },
+  {
+    q: "Can I change plans?",
+    a: "Yes. When you switch, the time left on your current pass is converted into days on the new plan. You can move to Starter if you have 3 or fewer active supervisees.",
+  },
+  {
+    q: "How many supervisees can I have?",
+    a: "Starter includes up to 3. Professional, Clinic and Custom include unlimited supervisees.",
   },
 ];
 
+const eur = (amount) => formatAmount(amount, "EUR");
+
+function readSavedPeriod() {
+  try {
+    return window.localStorage.getItem(PERIOD_KEY) === "yearly" ? "yearly" : "monthly";
+  } catch {
+    return "monthly";
+  }
+}
+
+/** "1 supervisor login · Up to 3 active supervisees", from the plan config. */
+function limitsLine(plan) {
+  if (plan.key === "supervisee") return "For trainees invited by their supervisor";
+  const logins =
+    plan.seatLimit == null
+      ? "Supervisor logins set per customer (6+)"
+      : `${plan.seatLimit === 1 ? "1 supervisor login" : `Up to ${plan.seatLimit} supervisor logins`}`;
+  const supervisees =
+    plan.maxActiveSupervisees == null
+      ? "Unlimited supervisees"
+      : `Up to ${plan.maxActiveSupervisees} active supervisees`;
+  return `${logins} · ${supervisees}`;
+}
+
 /**
- * The supervision portal's public page: what it is, the plans (buy, renew,
- * or see that you don't need to), and how it works.
- *
- * Also where an expired supervisor lands (RequirePortalRole sends them here),
- * so the page speaks to that case first. Paying is a one-off PayFast checkout
- * that adds 30 or 365 days; renewing early stacks on top.
+ * The supervision portal's public page: what it is, the plans with a
+ * Monthly / Yearly toggle, and the FAQ. Also where a supervisor comes to
+ * renew, so it says first where their plan stands.
  */
 export default function SupervisionPlans() {
-  const { user, loggedIn, currency, priceOf } = useProjectContext();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [buying, setBuying] = React.useState(null);
+  const { user, loggedIn } = useProjectContext();
+  const [plans, setPlans] = React.useState(null);
+  const [failed, setFailed] = React.useState(false);
+  const [period, setPeriod] = React.useState(readSavedPeriod);
   const [openFaq, setOpenFaq] = React.useState(0);
+
+  React.useEffect(() => {
+    let alive = true;
+    api
+      .get("/supervision/plans")
+      .then((res) => alive && setPlans(res.data.plans))
+      .catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const choosePeriod = (next) => {
+    setPeriod(next);
+    try {
+      window.localStorage.setItem(PERIOD_KEY, next);
+    } catch {
+      /* private mode or blocked storage: the choice just isn't remembered */
+    }
+  };
 
   const plan = user?.supervisionPlan;
   const isSupervisee = user?.portalRole === "supervisee";
   const isSupervisor = user?.portalRole === "supervisor";
-  const lapsed = isSupervisor && plan && !plan.active;
-
-  const handleBuy = async (item) => {
-    if (!loggedIn) {
-      navigate("/login", { state: { from: location.pathname } });
-      return;
-    }
-    setBuying(item.id);
-    try {
-      await initiateCheckoutSession([item], {
-        currency,
-        displayAmount: priceOf(item),
-      });
-      // The browser is now leaving for PayFast; nothing else to do here.
-    } catch (err) {
-      toast.error(err?.response?.data?.error || "Could not start checkout");
-      setBuying(null);
-    }
-  };
-
-  // Twelve months on Monthly against one Yearly, in the visitor's currency.
-  const monthly = priceOf(PLANS[0]);
-  const yearly = priceOf(PLANS[1]);
-  const saving = monthly != null && yearly != null ? monthly * 12 - yearly : null;
-
-  const openPortal = (
-    <Button color="inherit" onClick={() => navigate("/portal/supervisees")}>
-      Open portal
-    </Button>
-  );
 
   return (
-    <main className="bg-white">
+    <main className="bg-white font-raleway text-ds-ink lining-nums">
       {/* HERO */}
-      <section className="relative overflow-hidden bg-navy pt-[130px] t:pt-[160px] pb-20 text-white">
+      <section className="relative overflow-hidden bg-ds-navy-900 pt-[130px] t:pt-[160px] pb-20 text-white">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 top-10 h-[480px] w-[480px] rounded-full bg-sea-600/40 blur-[120px]" />
-          <div className="absolute -right-24 bottom-0 h-[420px] w-[420px] rounded-full bg-teal/25 blur-[120px]" />
+          <div className="absolute -left-32 top-10 h-[480px] w-[480px] rounded-full bg-ds-blue-700/50 blur-[120px]" />
+          <div className="absolute -right-24 bottom-0 h-[420px] w-[420px] rounded-full bg-ds-teal-500/20 blur-[120px]" />
         </div>
-        <div className="section relative grid items-center gap-14 l:grid-cols-2">
+        <div className="section relative grid items-center gap-12 l:grid-cols-2">
           <div className="text-left">
-            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-sea-300/30 bg-sea-400/10 px-3 py-1 text-[13px] font-semibold text-sea-100">
-              <span className="h-2 w-2 rounded-full bg-sea-300 shadow-[0_0_12px_3px_rgba(75,183,186,0.8)]" aria-hidden="true" />
+            <p className="m-0 inline-flex items-center gap-2 rounded-full border border-ds-teal-500/40 px-3 py-1 text-[14px] font-semibold text-ds-mist-200">
+              <span className="h-2 w-2 rounded-full bg-ds-teal-500" aria-hidden="true" />
               For ABA supervisors and supervisees
             </p>
-            <h1 className="mt-5 mb-0 text-[34px] t:text-[50px] font-extrabold leading-[1.08]">
-              The ABA Virtual{" "}
-              <span className="bg-gradient-to-r from-sea-200 via-sea-100 to-teal bg-clip-text text-transparent">
-                Supervision Portal
-              </span>
+            <h1 className="mt-5 mb-0 text-[40px] t:text-[50px] font-bold leading-[1.15]">
+              The ABA Virtual Supervision Portal
             </h1>
-            <p className="mt-5 max-w-[540px] text-[17px] leading-relaxed text-sea-100/80">
+            <p className="mt-5 max-w-[540px] text-[20px] leading-relaxed text-ds-mist-200">
               Track your supervisees' fieldwork hours, supervision meetings,
               progress and assignments in one place. Supervisees log their own
               hours; you review everything.
             </p>
             <div className="mt-8 flex flex-col gap-3 ml:flex-row ml:flex-wrap">
-              {isSupervisor && plan?.active ? (
-                <Link to="/portal/supervisees" className="btn-portal">
+              {isSupervisor && plan?.planKey ? (
+                <Link to="/portal/supervisees" className={primaryButton}>
                   Open your portal
                 </Link>
               ) : isSupervisee ? (
-                <Link to="/portal" className="btn-portal">
+                <Link to="/portal" className={primaryButton}>
                   Open my supervision
                 </Link>
               ) : (
-                <a href="#plans" className="btn-portal">
+                <a href="#plans" className={primaryButton}>
                   See plans &amp; pricing
                 </a>
               )}
@@ -154,12 +188,16 @@ export default function SupervisionPlans() {
                   <Link
                     to="/signup"
                     state={{ from: "/supervision-plans" }}
-                    className="btn bg-white text-navy shadow-lift hover:-translate-y-0.5"
+                    className={`${buttonBase} bg-white text-ds-navy-900 hover:bg-ds-mist-100`}
                   >
-                    Sign Up
+                    Sign up
                   </Link>
-                  <Link to="/login" state={{ from: "/supervision-plans" }} className="btn-on-dark">
-                    Log In
+                  <Link
+                    to="/login"
+                    state={{ from: "/supervision-plans" }}
+                    className={`${buttonBase} border border-white/40 text-white hover:bg-white/10`}
+                  >
+                    Log in
                   </Link>
                 </>
               )}
@@ -169,154 +207,82 @@ export default function SupervisionPlans() {
         </div>
       </section>
 
-      {/* ACCOUNT STATUS */}
-      {(plan?.complimentary || lapsed || (plan?.active && !plan.complimentary) || isSupervisee) && (
-        <div className="section mt-10 space-y-3">
-          {plan?.complimentary && (
-            <Alert severity="success" action={openPortal}>
-              Your account has free access to the Supervision Portal. No plan needed.
-            </Alert>
-          )}
-          {lapsed && (
-            <Alert severity="warning">
-              Your plan ended{plan.expiresAt ? ` on ${formatDate(plan.expiresAt)}` : ""}. Renew to
-              open the portal again. All your supervisees, hours and meetings are kept.
-            </Alert>
-          )}
-          {plan?.active && !plan.complimentary && (
-            <Alert severity="info" action={openPortal}>
-              Your plan is active until {formatDate(plan.expiresAt)} ({plan.daysLeft}{" "}
-              {plan.daysLeft === 1 ? "day" : "days"} left). Renewing now adds time on top.
-            </Alert>
-          )}
-          {isSupervisee && (
-            <Alert severity="info">
-              This is a supervisee account, so it's already covered by your supervisor. Plans are
-              for supervisors.
-            </Alert>
-          )}
-        </div>
-      )}
+      <AccountStatus user={user} />
 
       {/* PLANS */}
       {!plan?.complimentary && (
-        <section id="plans" aria-labelledby="plans-heading" className="scroll-mt-28 py-20 t:py-24">
+        <section id="plans" aria-labelledby="plans-heading" className="scroll-mt-28 bg-ds-cloud-50 py-20">
           <div className="section">
-            <div className="mx-auto max-w-[640px] text-center">
-              <p className="eyebrow text-sea-600 m-0">Plans &amp; pricing</p>
-              <h2 id="plans-heading" className="mt-3 mb-0 text-[30px] t:text-[40px] font-extrabold text-navy">
-                One portal, two ways to pay
+            <div className="mx-auto max-w-[680px] text-center">
+              <h2 id="plans-heading" className="m-0 text-[25px] t:text-[40px] font-bold leading-[1.2] text-ds-navy-900">
+                Plans &amp; pricing
               </h2>
-              <p className="mt-4 mb-0 text-[17px] text-slate-600">
-                Supervisors choose monthly or yearly access. Every plan includes
-                the whole portal, and supervisees always join free.
+              <p className="mt-4 mb-0 text-[16px] leading-relaxed text-ds-slate-500">
+                One-time passes, not subscriptions. Supervisees always join free.
               </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <PlanPeriodToggle value={period} onChange={choosePeriod} />
+                <span className="rounded-full bg-ds-peach-100 px-3 py-1 text-[14px] font-semibold text-ds-ink">
+                  Yearly: 2 months free
+                </span>
+              </div>
             </div>
 
-            <div className="mt-12 grid items-stretch gap-6 l:grid-cols-3">
-              {/* Supervisee: free */}
-              <article className="flex flex-col rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft">
-                <h3 className="m-0 text-[20px] font-bold text-navy">Supervisee</h3>
-                <p className="mt-1 mb-0 text-[14px] text-slate-500">For trainees whose supervisor uses ABA Virtual</p>
-                <p className="mt-6 mb-0 flex items-baseline gap-2">
-                  <span className="text-[44px] font-extrabold leading-none text-navy">Free</span>
-                </p>
-                <p className="mt-2 mb-0 text-[13px] text-slate-500">Your supervisor creates your account</p>
-                <ul className="m-0 mt-6 flex-grow list-none space-y-3 p-0">
-                  {SUPERVISEE_FEATURES.map((f) => (
-                    <li key={f} className="flex gap-2.5 text-[14px] text-slate-700">
-                      <CheckCircleIcon sx={{ color: "#16a34a", fontSize: 20 }} aria-hidden="true" />
-                      {f}
-                    </li>
+            {failed && (
+              <p role="alert" className="mt-10 mb-0 text-center text-[16px] text-ds-ink">
+                The plans couldn't be loaded. Please refresh the page.
+              </p>
+            )}
+
+            <div
+              className={`mt-12 grid items-stretch gap-6 min-[600px]:grid-cols-2 min-[768px]:grid-cols-3 ${
+                plans?.length === 5 ? "l:grid-cols-5" : "l:grid-cols-4"
+              }`}
+            >
+              {plans
+                ? plans.map((p) => (
+                    <PlanCard
+                      key={p.key}
+                      plan={p}
+                      period={period}
+                      isSupervisee={isSupervisee}
+                    />
+                  ))
+                : !failed &&
+                  [0, 1, 2, 3].map((i) => (
+                    <div key={i} aria-hidden="true" className="h-[520px] animate-pulse rounded-xl bg-ds-mist-100" />
                   ))}
-                </ul>
-                <Link
-                  to={isSupervisee ? "/portal" : "/login"}
-                  state={isSupervisee ? undefined : { from: "/portal" }}
-                  className="btn mt-8 border border-sea-200 bg-sea-50 text-sea-700 hover:-translate-y-0.5 hover:bg-sea-100"
-                >
-                  {isSupervisee ? "Open my supervision" : "Log in with your invite"}
-                </Link>
-              </article>
-
-              {PLANS.map((item) => {
-                const isYearly = item.id === "supervision-yearly";
-                const price = priceOf(item);
-                const disabled = isSupervisee || buying !== null || price == null;
-                return (
-                  <article
-                    key={item.id}
-                    className="relative flex flex-col rounded-3xl border-2 border-sea-200 bg-white p-7 text-left shadow-[0_20px_50px_-20px_rgba(38,92,126,0.35)] transition duration-300 hover:-translate-y-1 hover:border-sea-400"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="m-0 text-[20px] font-bold text-navy">{item.name}</h3>
-                      {isYearly && saving > 0 && (
-                        <span className="rounded-full bg-gradient-to-r from-sea-500 to-sea-700 px-3 py-1 text-[12px] font-semibold text-white">
-                          Save {formatAmount(saving, currency)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 mb-0 text-[14px] text-slate-500">For supervisors</p>
-                    <p className="mt-6 mb-0 flex items-baseline gap-2">
-                      <span className="text-[44px] font-extrabold leading-none text-navy">
-                        {formatAmount(price, currency)}
-                      </span>
-                      <span className="text-[15px] text-slate-500">/ {item.period}</span>
-                    </p>
-                    <p className="mt-2 mb-0 text-[13px] text-slate-500">
-                      One payment, {item.days} days of access. Not a subscription.
-                      {currency !== "EUR" ? ` €${item.price} in euros.` : ""}
-                    </p>
-                    <ul className="m-0 mt-6 flex-grow list-none space-y-3 p-0">
-                      {FEATURES.map((f) => (
-                        <li key={f} className="flex gap-2.5 text-[14px] text-slate-700">
-                          <CheckCircleIcon sx={{ color: "#16a34a", fontSize: 20 }} aria-hidden="true" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => handleBuy(item)}
-                      className="btn-portal mt-8 w-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                    >
-                      {buying === item.id
-                        ? "Opening checkout…"
-                        : plan?.active || lapsed
-                          ? `Renew ${item.name.toLowerCase()}`
-                          : loggedIn
-                            ? `Choose ${item.name.toLowerCase()}`
-                            : `Log in to choose ${item.name.toLowerCase()}`}
-                    </button>
-                  </article>
-                );
-              })}
             </div>
-            <p className="mt-6 mb-0 text-center text-[13px] text-slate-500">
-              Cards are billed in PKR by PayFast. Prices in other currencies are converted at today's rate.
+
+            {/* §8.4, word for word. */}
+            <p className="mx-auto mt-8 mb-0 max-w-[760px] text-center text-[14px] leading-relaxed text-ds-slate-500">
+              No plan renews automatically. Each payment adds 30 or 365 days, and renewing early
+              adds to the time you have left. Prices are in euros. Cards are billed in PKR by
+              PayFast, converted at today's rate.
             </p>
           </div>
         </section>
       )}
 
       {/* FEATURES */}
-      <section aria-labelledby="features-heading" className="bg-sea-50/60 py-20 t:py-24">
+      <section aria-labelledby="features-heading" className="py-20">
         <div className="section">
           <div className="mx-auto max-w-[640px] text-center">
-            <p className="eyebrow text-sea-600 m-0">Inside the portal</p>
-            <h2 id="features-heading" className="mt-3 mb-0 text-[30px] t:text-[40px] font-extrabold text-navy">
-              Everything a supervision relationship needs
+            <h2 id="features-heading" className="m-0 text-[25px] t:text-[40px] font-bold leading-[1.2] text-ds-navy-900">
+              Inside the portal
             </h2>
           </div>
-          <ul className="m-0 mt-12 grid list-none gap-5 p-0 ml:grid-cols-2 l:grid-cols-3">
+          <ul className="m-0 mt-12 grid list-none gap-6 p-0 min-[600px]:grid-cols-2 l:grid-cols-3">
             {PORTAL_FEATURES.map(({ Icon, title, text }) => (
-              <li key={title} className="card card-hover p-6 text-left">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sea-400 to-sea-700 shadow-glow">
+              <li
+                key={title}
+                className="rounded-xl border border-ds-mist-200 bg-white p-6 text-left shadow-md transition duration-200 hover:shadow-lg"
+              >
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-ds-blue-700">
                   <Icon sx={{ fontSize: 22, color: "white" }} aria-hidden="true" />
                 </span>
-                <h3 className="mt-4 mb-0 text-[17px] font-bold text-navy">{title}</h3>
-                <p className="mt-2 mb-0 text-[14px] leading-relaxed text-slate-600">{text}</p>
+                <h3 className="mt-4 mb-0 text-[20px] font-semibold text-ds-navy-900">{title}</h3>
+                <p className="mt-2 mb-0 text-[16px] leading-relaxed text-ds-slate-500">{text}</p>
               </li>
             ))}
           </ul>
@@ -324,32 +290,33 @@ export default function SupervisionPlans() {
       </section>
 
       {/* FAQ */}
-      <section aria-labelledby="faq-heading" className="py-20 t:py-24">
+      <section aria-labelledby="faq-heading" className="bg-ds-mist-100 py-20">
         <div className="section max-w-[820px]">
-          <h2 id="faq-heading" className="m-0 text-center text-[30px] t:text-[36px] font-extrabold text-navy">
+          <h2 id="faq-heading" className="m-0 text-center text-[25px] t:text-[40px] font-bold leading-[1.2] text-ds-navy-900">
             Questions about the portal
           </h2>
           <div className="mt-10 space-y-3">
             {FAQS.map((f, i) => {
               const open = openFaq === i;
               return (
-                <div key={f.q} className="card overflow-hidden text-left">
+                <div key={f.q} className="overflow-hidden rounded-xl bg-white text-left shadow-md">
                   <h3 className="m-0">
                     <button
                       type="button"
                       aria-expanded={open}
                       aria-controls={`faq-${i}`}
                       onClick={() => setOpenFaq(open ? null : i)}
-                      className="flex w-full items-center justify-between gap-4 bg-transparent px-6 py-5 text-left text-[16px] font-semibold text-navy"
+                      className="flex w-full items-center justify-between gap-4 bg-transparent px-6 py-5 text-left text-[16px] font-semibold text-ds-navy-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ds-teal-600"
                     >
                       {f.q}
                       <ExpandMoreIcon
                         aria-hidden="true"
-                        sx={{ transition: "transform .2s", transform: open ? "rotate(180deg)" : "none", color: "#265C7E" }}
+                        className="shrink-0 text-ds-teal-600 transition-transform duration-200"
+                        sx={{ transform: open ? "rotate(180deg)" : "none" }}
                       />
                     </button>
                   </h3>
-                  <div id={`faq-${i}`} hidden={!open} className="px-6 pb-5 text-[15px] leading-relaxed text-slate-600">
+                  <div id={`faq-${i}`} hidden={!open} className="px-6 pb-5 text-[16px] leading-relaxed text-ds-slate-500">
                     {f.a}
                   </div>
                 </div>
@@ -359,5 +326,138 @@ export default function SupervisionPlans() {
         </div>
       </section>
     </main>
+  );
+}
+
+const buttonBase =
+  "inline-flex min-h-[48px] items-center justify-center rounded-lg px-4 py-2 text-center text-[18px] font-bold leading-tight no-underline transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-teal-600 focus-visible:ring-offset-2";
+// The one primary call to action: orange-500 with white 18px bold text.
+const primaryButton = `${buttonBase} bg-ds-orange-500 text-white shadow-md hover:bg-ds-orange-600 hover:shadow-lg`;
+const secondaryButton = `${buttonBase} bg-ds-blue-700 text-white hover:bg-ds-blue-600`;
+const outlineButton = `${buttonBase} border-2 border-ds-blue-700 bg-white text-ds-blue-700 hover:bg-ds-mist-100`;
+
+function PlanCard({ plan, period, isSupervisee }) {
+  const featured = plan.featured;
+  // Priced plans show their price whether or not checkout sells them yet
+  // (Clinic checkout arrives in Phase 2).
+  const price = plan.prices ? plan.prices[period] : null;
+
+  let amount;
+  let periodLabel = null;
+  let subLine;
+  if (plan.key === "supervisee") {
+    amount = "Free";
+    subLine = "Invite only";
+  } else if (!price) {
+    // Custom: quoted, no list price.
+    amount = "Let's talk";
+    subLine = "Quote, invoiced by ABA Virtual";
+  } else {
+    amount = eur(price.priceEur);
+    periodLabel = `/ ${price.days} days`;
+    subLine =
+      period === "yearly"
+        ? `About ${eur(plan.yearly.monthlyEquivalentEur)} a month. Save ${eur(plan.yearly.savingEur)}`
+        : "One payment. Not a subscription.";
+  }
+
+  let cta;
+  if (plan.key === "supervisee") {
+    cta = isSupervisee ? (
+      <Link to="/portal" className={outlineButton}>
+        Open my supervision
+      </Link>
+    ) : (
+      <Link to="/login" state={{ from: "/portal" }} className={outlineButton}>
+        Log in with your invite
+      </Link>
+    );
+  } else if (plan.key === "custom") {
+    cta = (
+      <a href={CUSTOM_MAILTO} className={outlineButton}>
+        Contact us
+      </a>
+    );
+  } else {
+    cta = (
+      <Link
+        to={`/checkout?plan=${plan.key}&period=${period}`}
+        className={featured ? primaryButton : secondaryButton}
+      >
+        Choose {plan.name}
+      </Link>
+    );
+  }
+
+  return (
+    <article
+      aria-labelledby={`plan-${plan.key}`}
+      className={`relative flex flex-col rounded-xl bg-white p-5 text-left transition duration-200 ${
+        featured ? "border-2 border-ds-teal-600 shadow-xl" : "border border-ds-mist-200 shadow-md hover:shadow-lg"
+      }`}
+    >
+      {featured && (
+        <span className="absolute -top-3 left-6 rounded-full bg-ds-navy-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+          Most popular
+        </span>
+      )}
+      <h3 id={`plan-${plan.key}`} className="m-0 text-[25px] font-semibold leading-[1.3] text-ds-navy-900">
+        {plan.name}
+      </h3>
+      <p className="mt-1 mb-0 min-h-[42px] text-[14px] leading-snug text-ds-slate-500">{limitsLine(plan)}</p>
+      <p className="mt-5 mb-0 flex flex-wrap items-baseline gap-x-2" aria-live="polite">
+        <span className="text-[40px] font-bold leading-none text-ds-navy-900">{amount}</span>
+        {periodLabel && <span className="text-[16px] text-ds-slate-500">{periodLabel}</span>}
+      </p>
+      <p className="mt-2 mb-0 min-h-[42px] text-[14px] leading-snug text-ds-slate-500">{subLine}</p>
+      <ul className="m-0 mt-5 flex-grow list-none space-y-3 p-0">
+        {CARD_FEATURES[plan.key].map((f) => (
+          <li key={f} className="flex gap-2 text-[14px] leading-snug text-ds-ink">
+            <CheckIcon className="shrink-0 text-ds-teal-600" sx={{ fontSize: 20 }} aria-hidden="true" />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-8 flex flex-col">{cta}</div>
+    </article>
+  );
+}
+
+/** Where the signed-in account stands, before the plans. */
+function AccountStatus({ user }) {
+  const plan = user?.supervisionPlan;
+  const isSupervisee = user?.portalRole === "supervisee";
+  const name = plan?.planKey ? plan.planKey[0].toUpperCase() + plan.planKey.slice(1) : null;
+
+  let message = null;
+  let warm = false;
+  if (plan?.complimentary) {
+    message = "Your account has free access to the Supervision Portal. No plan needed.";
+  } else if (isSupervisee) {
+    message =
+      "This is a supervisee account, so it's already covered by your supervisor. Plans are for supervisors.";
+  } else if (plan?.planKey && plan.active) {
+    message = `Your ${name} plan is active until ${formatDate(plan.expiresAt)} (${plan.daysLeft} ${
+      plan.daysLeft === 1 ? "day" : "days"
+    } left). Renewing early adds the new time to what you have left.`;
+  } else if (plan?.planKey && user?.portalRole === "supervisor") {
+    warm = true;
+    message = `Your ${name} plan ended${
+      plan.expiresAt ? ` on ${formatDate(plan.expiresAt)}` : ""
+    }. Your account is read-only: you can still log in, view and export everything. Nothing is deleted. Renew any time to pick up where you left off.`;
+  }
+  if (!message) return null;
+
+  return (
+    <div className="section mt-10">
+      <p
+        role="status"
+        className={`m-0 rounded-xl border-l-4 px-5 py-4 text-left text-[16px] leading-relaxed text-ds-ink ${
+          warm ? "border-ds-orange-500 bg-ds-cream-50" : "border-ds-teal-600 bg-ds-mist-100"
+        }`}
+      >
+        {message}
+      </p>
+    </div>
   );
 }

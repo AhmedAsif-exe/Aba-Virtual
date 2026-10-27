@@ -10,6 +10,29 @@ module.exports = {
         londrina: ["Londrina Solid", "cursive"],
       },
       colors: {
+        // ABA Virtual design system tokens (claude.ai design system artifact,
+        // project/tokens.json), under their own names so no existing class
+        // changes. New pages use these, e.g. bg-ds-navy-900, text-ds-ink.
+        ds: {
+          "navy-900": "#042539",
+          "navy-800": "#0b2a3d",
+          ink: "#14293a",
+          "blue-700": "#265c7e",
+          "blue-600": "#1e607d",
+          "teal-400": "#4bb7ba",
+          "teal-500": "#45b4b3",
+          "teal-600": "#28a5a8",
+          "orange-500": "#f97544",
+          "orange-600": "#ec5923",
+          "green-500": "#57c785",
+          "mist-100": "#e6edf2",
+          "mist-200": "#c7d6de",
+          "slate-400": "#8aa3b5",
+          "slate-500": "#627d8f",
+          "cloud-50": "#f7fafc",
+          "cream-50": "#fff8f5",
+          "peach-100": "#ffece6",
+        },
         // Brand, from the logo.
         navy: "#042539",
         brand: "#265c7e",
