@@ -15,7 +15,7 @@ const SupervisionAssignment = require("../Schema/SupervisionAssignment");
 const { ASSIGNMENT_STATUSES, SUPERVISEE_STATUSES, ASSIGNMENT_KINDS } = SupervisionAssignment;
 const SupervisionPayment = require("../Schema/SupervisionPayment");
 const SupervisionShare = require("../Schema/SupervisionShare");
-const { can } = require("../Services/entitlements");
+const { can, canWrite } = require("../Services/entitlements");
 const { planContextFor } = require("../Services/planContext");
 const { buildSuperviseeCsv, buildSupervisorCsv, exportFileName } = require("../Services/exportCsv");
 const { quote } = require("../Services/planPurchase");
@@ -137,10 +137,24 @@ async function getDashboard(req, res, next) {
       serializeProfile(req, req.profile),
       buildSummary(req.profile),
     ]);
-    res.json({ profile, summary });
+    const body = { profile, summary };
+    // A supervisee's own dashboard also says whether they can log and reply,
+    // so the page can explain why not. The routes enforce the same rules.
+    if (!req.readOnlyViewer && req.user.portalRole === "supervisee") {
+      body.logging = await loggingState(req.profile);
+    }
+    res.json(body);
   } catch (err) {
     next(err);
   }
+}
+
+/** @returns {Promise<{open: boolean, reason: "archived"|"supervisor_plan_ended"|null}>} */
+async function loggingState(profile) {
+  if (profile.archivedAt) return { open: false, reason: "archived" };
+  const supervisor = await User.findById(profile.supervisorId).select("email supervisionPlan");
+  const live = supervisor && canWrite(supervisor, await planContextFor(supervisor._id));
+  return live ? { open: true, reason: null } : { open: false, reason: "supervisor_plan_ended" };
 }
 
 /** Month-by-month series for the progress charts, computed from the logs. */

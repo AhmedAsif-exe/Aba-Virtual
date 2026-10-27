@@ -6,7 +6,8 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const User = require("../Schema/User");
-const { planStatus } = require("../Services/supervisionPlans");
+const { summary: planSummary } = require("../Services/entitlements");
+const { planContextFor } = require("../Services/planContext");
 const SupervisionShare = require("../Schema/SupervisionShare");
 
 const router = express.Router();
@@ -85,7 +86,15 @@ router.post("/register", async (req, res) => {
     user = new User({ name, email, password: hashed });
     await user.save();
 
-    res.status(201).json({ message: "User registered" });
+    // Signed in straight away (sign-up has no email verification), so a plan
+    // chosen before signing up carries on to checkout.
+    req.logIn(user, (err) => {
+      if (err) return res.status(201).json({ message: "User registered" });
+      res.status(201).json({
+        message: "User registered",
+        user: { _id: user._id, name: user.name, email: user.email, portalRole: null },
+      });
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
@@ -181,8 +190,11 @@ router.get("/me", async (req, res) => {
         // re-checks this server-side (Middleware/supervisionAuth.js).
         portalRole: portalRole || null,
         mustChangePassword: !!mustChangePassword,
-        // Paid supervisor access; drives the plans page and the renew banner.
-        supervisionPlan: planStatus(req.user),
+        // The supervisor's plan from Services/entitlements.js: plan key, end
+        // date, whether they can write, and which features it includes. Drives
+        // the plans page, banners and which controls show; every limit is
+        // still enforced server-side.
+        supervisionPlan: planSummary(req.user, await planContextFor(req.user._id)),
         sharedWithMe,
         // ABA Virtual staff (scripts/promoteAdmin.js). Shows the admin
         // screen; /admin re-checks it on every request.

@@ -104,11 +104,19 @@ function summary(user, ctx) {
     Object.keys(FEATURES.custom).map((feature) => [feature, can(user, feature, ctx)]),
   );
   const maxActive = limit(user, "max_active_supervisees", ctx);
+  const now = ctx?.now || new Date();
+  // Whole days left on a live pass; null when it never ends (free accounts).
+  let daysLeft = 0;
+  if (plan.active) daysLeft = plan.expiresAt ? Math.ceil((plan.expiresAt - now) / 86400000) : null;
   return {
     planKey: plan.planKey,
+    // Same value as planKey, under the name the frontend already reads.
+    plan: plan.planKey,
+    source: plan.source,
     active: plan.active,
     complimentary: plan.complimentary,
     expiresAt: plan.expiresAt,
+    daysLeft,
     canWrite: canWrite(user, ctx),
     features,
     // JSON has no Infinity; null means unlimited.
