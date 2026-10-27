@@ -51,9 +51,29 @@ const orderSchema = new mongoose.Schema(
       mobile: String,
     },
 
+    // A supervision plan purchase, snapshotted so a later price change can't
+    // rewrite what the pass was worth (plan changes convert from priceEur).
+    plan: {
+      type: new mongoose.Schema(
+        {
+          planKey: String,
+          period: { type: String, enum: ["monthly", "yearly"] },
+          priceEur: Number,
+          periodDays: Number,
+          kind: { type: String, enum: ["new", "renewal", "change"] },
+          quotedExpiresAt: Date,
+          appliedExpiresAt: Date,
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
+
+    // "processing" is the callback's claim on the order, so two PayFast legs
+    // arriving together can't both apply it.
     status: {
       type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
+      enum: ["pending", "processing", "paid", "failed", "refunded"],
       default: "pending",
       index: true,
     },

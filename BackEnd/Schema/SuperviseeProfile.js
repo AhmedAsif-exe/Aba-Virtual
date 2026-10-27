@@ -63,6 +63,11 @@ const superviseeProfileSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Set when the supervisor archives them; null means active (§4.5).
+    // Archived supervisees keep every record and don't count towards a
+    // plan's supervisee limit.
+    archivedAt: { type: Date, default: null },
+
     // Supervisor's private notes. Never leaves the server for a supervisee —
     // see toSuperviseeJSON, which whitelists rather than deletes, so a field
     // added here later stays private until someone deliberately exposes it.
@@ -72,6 +77,7 @@ const superviseeProfileSchema = new mongoose.Schema(
 );
 
 superviseeProfileSchema.index({ supervisorId: 1, status: 1 });
+superviseeProfileSchema.index({ supervisorId: 1, archivedAt: 1 });
 
 /**
  * `user` and `board` are passed in rather than read off the document so the
