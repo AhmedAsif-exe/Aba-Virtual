@@ -19,4 +19,7 @@ async function disconnect() {
   if (server) await server.stop();
 }
 
-module.exports = { connect, clear, disconnect };
+/** The in-memory server's address, for scripts run as child processes. */
+const uri = () => server.getUri();
+
+module.exports = { connect, clear, disconnect, uri };

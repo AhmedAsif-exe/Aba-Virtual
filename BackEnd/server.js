@@ -18,6 +18,7 @@ const scoresRoutes = require("./Routes/scores");
 const payfastRoutes = require("./Routes/payfast");
 const supervisionRoutes = require("./Routes/supervision");
 const boardRoutes = require("./Routes/boards");
+const adminRoutes = require("./Routes/admin");
 const app = express();
 // Behind nginx/Cloudflare: use real visitor IP from X-Forwarded-For
 app.set("trust proxy", 1);
@@ -69,5 +70,6 @@ app.use("/scores", scoresRoutes);
 app.use("/payfast", payfastRoutes);
 app.use("/supervision", supervisionRoutes);
 app.use("/boards", boardRoutes);
+app.use("/admin", adminRoutes);
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
