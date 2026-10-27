@@ -378,3 +378,17 @@ All three match `scripts/seedBoards.js` exactly. **There are no custom boards**,
   > Renew any time to pick up where you left off.
   >
   > [Renew your plan]
+
+### Decisions after the brief (2026-10-27)
+
+| # | Topic | Decision |
+| --- | --- | --- |
+| 1 | Item-4 fixes | Approved and done: free never-expiring accounts untouched by the migration; wrong board examples removed from test data and placeholders; login-redirect test in the suite; share-removal-while-read-only test. |
+| 6 | Export | Both: one CSV per supervisee, and one combined CSV of all a supervisor's supervisees (`GET /supervision/export.csv`). |
+| 7a | Organisation vs own pass | Use the organisation's plan while it's active; never overwrite the member's own plan (joining or leaving changes nothing on it). Once the organisation's pass has ended, a live own pass applies. |
+| 7b | Yearly email subject | "We've added 61 days to your supervision portal plan" (approved). |
+| 7c | Expired write message | Existing "Your supervision plan has ended. Renew to continue." (approved). |
+| 7d | Seats | A manager-only admin takes no seat (approved). |
+| — | Login fix c0acde5 | Approved, including the redirect and hiding the join box for signed-in users. |
+| — | Board requirements | Required supervision %: Supervised Fieldwork 5% and Concentrated 10% under the 2022 rules; 5% and 7.5% under the 2027 rules. Editable data, never hard-coded. **Pending confirmation from ABA Virtual:** total hours per track, and that the rule is chosen by the **certification application date**. Do not finalise the boards step until both are confirmed. |
+| — | Testing | Local database copy only (`D:\aba-local-mongo`, see its README); never the live database or live payment settings. |
