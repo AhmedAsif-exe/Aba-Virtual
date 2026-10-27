@@ -67,8 +67,6 @@ describe("mapping (§5)", () => {
 
     assert.strictEqual((await reload(u.monthlyExpired)).supervisionPlan.planKey, "professional");
 
-    const faiza = await reload(u.faiza);
-    assert.strictEqual(faiza.supervisionPlan.complimentary, true);
 
     assert.strictEqual((await reload(u.supervisee)).supervisionPlan.planKey, null);
     assert.strictEqual((await reload(u.customer)).supervisionPlan.planKey, null);
@@ -84,6 +82,17 @@ describe("mapping (§5)", () => {
       assert.strictEqual(can(user, "payment_tracking"), true, key);
     }
   });
+});
+
+test("free accounts that never expire stay exactly as they are, even with emails on", async () => {
+  const u = await seed();
+  const before = await reload(u.faiza);
+  await migrate({ dryRun: false, sendEmails: true, now: NOW, log: quiet, sendEmail: fakeSend });
+  await migrate({ dryRun: false, sendEmails: true, now: NOW, log: quiet, sendEmail: fakeSend });
+  assert.deepStrictEqual(await reload(u.faiza), before);
+  assert.ok(!sentTo.some((d) => d.user.email === "ffaizan.aba@gmail.com"));
+  // Still full access, from the same free-account rule as before.
+  assert.strictEqual(can(before, "payment_tracking"), true);
 });
 
 describe("runs twice, applies once", () => {
@@ -141,7 +150,7 @@ describe("dry run", () => {
 
     assert.strictEqual(result.counts["yearly-active"], 1);
     assert.strictEqual(result.counts["monthly-active"], 1);
-    assert.strictEqual(result.counts.complimentary, 1);
+    assert.strictEqual(result.counts["free-unchanged"], 1);
     assert.strictEqual(result.counts["already-migrated"], 1); // the new Starter buyer
     const yearlyRow = result.rows.find((r) => r.email === "yearly@example.test");
     assert.strictEqual(yearlyRow.creditDays, 61);

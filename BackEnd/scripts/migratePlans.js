@@ -28,8 +28,9 @@ function planFor(user, now) {
   const expiresAt = stored.expiresAt ? new Date(stored.expiresAt) : null;
   const active = Boolean(expiresAt && expiresAt > now);
 
+  // Free accounts that never expire stay exactly as they are (brief §5).
   if (COMPLIMENTARY_SUPERVISORS.includes(email)) {
-    return { category: "complimentary", set: { planKey: "professional", complimentary: true } };
+    return { category: "free-unchanged", unchanged: true };
   }
   if (stored.plan === "supervision-yearly") {
     const yearly = passFor("professional", "yearly");
@@ -81,6 +82,22 @@ async function migrate({
     const stored = user.supervisionPlan || {};
     const target = planFor(user, now);
     const before = { planKey: stored.planKey || null, expiresAt: stored.expiresAt || null };
+
+    if (target.unchanged) {
+      counts[target.category] = (counts[target.category] || 0) + 1;
+      rows.push({
+        email: user.email,
+        category: target.category,
+        oldPlan: stored.plan || null,
+        oldExpiry: before.expiresAt,
+        newPlan: "(unchanged)",
+        newExpiry: before.expiresAt,
+        creditDays: 0,
+        emailStatus: "-",
+      });
+      continue;
+    }
+
     const alreadyDone = Boolean(stored.planKey) && (!target.credit || stored.migrationCreditApplied);
 
     // Stacked yearly passes: one 61-day credit may under-credit. Flag them.
