@@ -65,8 +65,8 @@ function requireActivePass(req, res, next) {
   return next();
 }
 
-// The spec gives no wording for this; see the plan's open items.
-const NOT_IN_PLAN = "Your plan doesn't include this feature.";
+// Approved wording (2026-10-27); the page adds an upgrade button.
+const NOT_IN_PLAN = "This feature isn't included in your plan. Upgrade to use it.";
 
 /**
  * A feature the supervisor's plan must include (Config/plans.js FEATURES).

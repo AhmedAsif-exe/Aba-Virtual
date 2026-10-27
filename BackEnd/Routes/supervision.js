@@ -1064,7 +1064,10 @@ function rejectArchived(req, res, next) {
   if (req.profile.archivedAt) {
     return res
       .status(403)
-      .json({ message: "Your supervisor has archived your record. You can view your records." });
+      .json({
+        message:
+          "Your supervisor has archived your record. You can still view your records. Contact your supervisor if this is a mistake.",
+      });
   }
   return next();
 }
@@ -1091,6 +1094,8 @@ router.patch(
   ensureAuth,
   ensureSupervisee,
   scopeFromSession,
+  // Replies pause with hour logging while the supervisor's pass has ended.
+  requireSupervisorActive,
   respondToAssignment,
 );
 
@@ -1345,7 +1350,8 @@ router.post(
   "/supervisees/:id/archive",
   ensureAuth,
   ensureSupervisor,
-  requireActivePass,
+  // Allowed while read-only, so a lapsed supervisor can get down to a
+  // smaller plan's limit before renewing on it. Restore is not.
   scopeFromParam,
   async (req, res, next) => {
     try {

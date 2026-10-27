@@ -69,7 +69,7 @@ async function quote(user, pass, now = new Date()) {
   }
   const plan = effectivePlan(user, { now });
   if (plan.complimentary) {
-    return { ok: false, status: 400, message: "This account already has free access to the portal." };
+    return { ok: false, status: 400, message: "This account already has free access to the portal, so there's nothing to buy." };
   }
 
   // A plan with a supervisee limit can't be bought while over it (§4.3).

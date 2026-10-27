@@ -58,7 +58,9 @@ router.post("/initiate", ensureAuth, async (req, res) => {
     const planItems = priced.items.filter((i) => passForItem(i));
     if (planItems.length) {
       if (priced.items.length > 1) {
-        return res.status(400).json({ error: "A supervision plan is bought on its own." });
+        return res.status(400).json({
+          error: "A supervision plan has to be bought on its own. Please check out other items separately.",
+        });
       }
       const pass = passForItem(planItems[0]);
       const quoted = await quote(req.user, pass);

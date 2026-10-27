@@ -32,6 +32,7 @@ describe("payment tracking", () => {
     const read = await request(app).get(base).set(as(supervisor));
     assert.strictEqual(read.status, 403);
     assert.strictEqual(read.body.upgradeRequired, "payment_tracking");
+    assert.strictEqual(read.body.message, "This feature isn't included in your plan. Upgrade to use it.");
 
     const mark = await request(app).put(`${base}/2026-10`).set(as(supervisor)).send({ status: "paid" });
     assert.strictEqual(mark.status, 403);

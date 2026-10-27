@@ -141,6 +141,13 @@ describe("quote before payment (§4.3)", () => {
     assert.strictEqual(res.status, 400);
   });
 
+  test("a complimentary account is told there's nothing to buy", async () => {
+    const user = await makeSupervisor({ planKey: null, expiresAt: null, email: "ffaizan.aba@gmail.com" });
+    const res = await request(app).get("/supervision/plans/quote?plan=starter&period=monthly").set(as(user));
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(res.body.message, "This account already has free access to the portal, so there's nothing to buy.");
+  });
+
   test("Clinic and Custom can't be bought at checkout in Phase 1", async () => {
     const user = await User.create({ email: "buyer@example.test" });
     for (const plan of ["clinic", "custom"]) {
@@ -170,6 +177,10 @@ describe("PayFast initiate", () => {
     const user = await User.create({ email: "mixed@example.test" });
     const res = await initiate(user, ["plan:starter:monthly", "ffc-bundle"]);
     assert.strictEqual(res.status, 400);
+    assert.strictEqual(
+      res.body.error,
+      "A supervision plan has to be bought on its own. Please check out other items separately.",
+    );
   });
 });
 

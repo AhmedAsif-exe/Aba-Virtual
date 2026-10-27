@@ -134,5 +134,9 @@ describe("archive and restore", () => {
       .set(as(user))
       .send({ weekStartDate: "2026-10-05", hours: 10 });
     assert.strictEqual(log.status, 403);
+    assert.strictEqual(
+      log.body.message,
+      "Your supervisor has archived your record. You can still view your records. Contact your supervisor if this is a mistake.",
+    );
   });
 });

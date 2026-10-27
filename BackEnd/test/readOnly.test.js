@@ -11,6 +11,7 @@ const { daysFromNow, makeSupervisor, makeSupervisee } = require("./helpers/fixtu
 const supervisionRouter = require("../Routes/supervision");
 const boardsRouter = require("../Routes/boards");
 const { SUPERVISOR_PLAN_ENDED } = require("../Middleware/supervisionAuth");
+const SupervisionAssignment = require("../Schema/SupervisionAssignment");
 
 const app = buildApp({ "/supervision": supervisionRouter, "/boards": boardsRouter });
 const as = (user) => ({ "x-test-user": String(user._id) });
@@ -19,6 +20,7 @@ const as = (user) => ({ "x-test-user": String(user._id) });
 const ALLOWED_WHILE_READ_ONLY = new Set([
   "post /supervisees/:id/reset-password",
   "delete /shares/:shareId",
+  "post /supervisees/:id/archive",
 ]);
 
 /** Every non-GET supervisor route the router actually defines. */
@@ -86,6 +88,21 @@ describe("expired supervisor (§4.4)", () => {
     }
   });
 
+  test("can archive, to get down to a smaller plan's limit, but not restore", async () => {
+    const supervisor = await makeSupervisor({ expiresAt: daysFromNow(-1) });
+    const { profile } = await makeSupervisee(supervisor);
+    const archived = await request(app)
+      .post(`/supervision/supervisees/${profile._id}/archive`)
+      .set(as(supervisor));
+    assert.strictEqual(archived.status, 200);
+    assert.ok(archived.body.supervisee.archivedAt);
+
+    const restored = await request(app)
+      .post(`/supervision/supervisees/${profile._id}/restore`)
+      .set(as(supervisor));
+    assert.strictEqual(restored.status, 402);
+  });
+
   test("can still reset a supervisee's password (account recovery)", async () => {
     const supervisor = await makeSupervisor({ expiresAt: daysFromNow(-1) });
     const { profile } = await makeSupervisee(supervisor);
@@ -145,6 +162,23 @@ describe("supervisees of an expired supervisor (§4.4)", () => {
     const id = String(new mongoose.Types.ObjectId());
     assert.strictEqual((await request(app).patch(`/supervision/me/hours/${id}`).set(as(user)).send({})).status, 402);
     assert.strictEqual((await request(app).delete(`/supervision/me/hours/${id}`).set(as(user))).status, 402);
+  });
+
+  test("assignment replies pause too, with the same message", async () => {
+    const supervisor = await makeSupervisor({ expiresAt: daysFromNow(-1) });
+    const { user, profile } = await makeSupervisee(supervisor);
+    const assignment = await SupervisionAssignment.create({
+      superviseeId: profile._id,
+      title: "Read chapter 3",
+      createdBy: supervisor._id,
+    });
+    const reply = await request(app)
+      .patch(`/supervision/me/assignments/${assignment._id}`)
+      .set(as(user))
+      .send({ status: "submitted", response: "Done" });
+    assert.strictEqual(reply.status, 402);
+    assert.strictEqual(reply.body.message, SUPERVISOR_PLAN_ENDED);
+    assert.strictEqual((await request(app).get("/supervision/me/assignments").set(as(user))).status, 200);
   });
 
   test("log hours again once the supervisor has an active pass", async () => {
