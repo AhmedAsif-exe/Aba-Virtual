@@ -14,7 +14,8 @@ import { PORTAL_FEATURES } from "Pages/Home/SupervisionShowcase";
 // tailwind.config.js, Raleway, radius-lg buttons / radius-xl cards, Tailwind
 // shadow-md → lg). Scoped to this page: no shared classes are changed.
 
-const CUSTOM_MAILTO = "mailto:contact@abavirtual.net?subject=Custom%20supervision%20portal%20plan";
+const contactMailto = (planName) =>
+  `mailto:contact@abavirtual.net?subject=${encodeURIComponent(`${planName} supervision portal plan`)}`;
 const PERIOD_KEY = "aba.supervisionPlanPeriod";
 
 // What each card lists, in the wording of the brief's features table (§3).
@@ -257,8 +258,7 @@ export default function SupervisionPlans() {
             {/* §8.4, word for word. */}
             <p className="mx-auto mt-8 mb-0 max-w-[760px] text-center text-[14px] leading-relaxed text-ds-slate-500">
               No plan renews automatically. Each payment adds 30 or 365 days, and renewing early
-              adds to the time you have left. Prices are in euros. Cards are billed in PKR by
-              PayFast, converted at today's rate.
+              adds to the time you have left.
             </p>
           </div>
         </section>
@@ -372,9 +372,10 @@ function PlanCard({ plan, period, isSupervisee }) {
         Log in with your invite
       </Link>
     );
-  } else if (plan.key === "custom") {
+  } else if (plan.checkout !== "payfast") {
+    // Custom always, and Clinic until its checkout ships in Phase 2.
     cta = (
-      <a href={CUSTOM_MAILTO} className={outlineButton}>
+      <a href={contactMailto(plan.name)} className={outlineButton}>
         Contact us
       </a>
     );
