@@ -19,13 +19,15 @@ import { Instagram, LinkedIn, Email, LocationOn, Phone } from "@mui/icons-materi
 import { useState } from "react";
 import { toast } from "react-toastify";
 export const ContactInfoSection = () => {
+  // The pricing page's Clinic and Custom cards link here as /contact?plan=Clinic.
+  const plan = new URLSearchParams(window.location.search).get("plan");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     enquiryType: "",
-    message: "",
+    message: plan ? `I'm interested in the ${plan} supervision portal plan.` : "",
   });
   const contactInfo = {
     phone: "aba.virtual",

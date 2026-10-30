@@ -14,8 +14,6 @@ import { PORTAL_FEATURES } from "Pages/Home/SupervisionShowcase";
 // tailwind.config.js, Raleway, radius-lg buttons / radius-xl cards, Tailwind
 // shadow-md → lg). Scoped to this page: no shared classes are changed.
 
-const contactMailto = (planName) =>
-  `mailto:contact@abavirtual.net?subject=${encodeURIComponent(`${planName} supervision portal plan`)}`;
 const PERIOD_KEY = "aba.supervisionPlanPeriod";
 
 // What each card lists, in the wording of the brief's features table (§3).
@@ -375,9 +373,9 @@ function PlanCard({ plan, period, isSupervisee }) {
   } else if (plan.checkout !== "payfast") {
     // Custom always, and Clinic until its checkout ships in Phase 2.
     cta = (
-      <a href={contactMailto(plan.name)} className={outlineButton}>
+      <Link to={`/contact?plan=${encodeURIComponent(plan.name)}`} className={outlineButton}>
         Contact us
-      </a>
+      </Link>
     );
   } else {
     cta = (
